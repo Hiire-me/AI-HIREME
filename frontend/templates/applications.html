@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Applications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">Application Tracker</div>
+        <div class="page-subtitle">Track every application from submission to offer</div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid" id="app-stats" style="grid-template-columns:repeat(6,1fr);margin-bottom:28px">
+    <div class="stat-card">
+        <div class="stat-value" id="s-total">—</div>
+        <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="s-submitted">—</div>
+        <div class="stat-label">Submitted</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="s-reviewing">—</div>
+        <div class="stat-label">Reviewing</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="s-interview">—</div>
+        <div class="stat-label">Interviews</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="s-offer">—</div>
+        <div class="stat-label">Offers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="s-rejected">—</div>
+        <div class="stat-label">Rejected</div>
+    </div>
+</div>
+
+<!-- Kanban Board -->
+<div class="kanban" id="kanban-board">
+    <!-- Rendered by JS -->
+    <div class="empty-state" style="grid-column:1/-1">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;color:var(--text-3)">Loading applications…</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const COLS = [
+        { key: 'submitted', label: 'Submitted', dot: 'dot-submitted', next: 'reviewing' },
+        { key: 'reviewing', label: 'Reviewing', dot: 'dot-reviewing', next: 'interview' },
+        { key: 'interview', label: 'Interview', dot: 'dot-interview', next: 'offer' },
+        { key: 'offer', label: 'Offer', dot: 'dot-offer', next: null },
+        { key: 'rejected', label: 'Rejected', dot: 'dot-rejected', next: null },
+    ];
+
+    let apps = [];
+
+    async function loadApps() {
+        try {
+            apps = await api.get('/api/applications');
+            renderBoard();
+            loadStats();
+        } catch (e) { toast('Failed to load applications', 'error'); }
+    }
+
+    async function loadStats() {
+        try {
+            const s = await api.get('/api/applications/stats');
+            document.getElementById('s-total').textContent = s.total;
+            document.getElementById('s-submitted').textContent = s.submitted;
+            document.getElementById('s-reviewing').textContent = s.reviewing;
+            document.getElementById('s-interview').textContent = s.interview;
+            document.getElementById('s-offer').textContent = s.offer;
+            document.getElementById('s-rejected').textContent = s.rejected;
+        } catch (e) { }
+    }
+
+    function renderBoard() {
+        const board = document.getElementById('kanban-board');
+        if (!apps.length) {
+            board.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-title">No applications yet</div>
+      <div class="empty-sub">Go to the <a href="/jobs" style="color:#a78bfa">Job Board</a> and click "Track Application" on any job.</div>
+    </div>`;
+            return;
+        }
+
+        board.innerHTML = COLS.map(col => {
+            const colApps = apps.filter(a => a.status === col.key);
+            const cards = colApps.map(a => `
+      <div class="kanban-card">
+        <div class="kanban-job-title">${a.job.title}</div>
+        <div class="kanban-company">${a.job.company}</div>
+        <div class="kanban-meta">
+          ${a.match_score ? `<span class="badge badge-primary">${a.match_score}%</span>` : ''}
+          <span class="badge badge-gray">${timeAgo(a.applied_at)}</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          ${col.next ? `<button class="btn btn-primary btn-sm" onclick="moveApp(${a.id},'${col.next}')">→ ${COLS.find(c => c.key === col.next)?.label || col.next}</button>` : ''}
+          ${col.key !== 'rejected' ? `<button class="btn btn-danger btn-sm" onclick="moveApp(${a.id},'rejected')">Reject</button>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="deleteApp(${a.id})" style="margin-left:auto">Delete</button>
+        </div>
+      </div>`).join('');
+
+            return `
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div class="kanban-col-title"><span class="app-status-dot ${col.dot}" style="margin-right:6px"></span>${col.label}</div>
+          <div class="kanban-count">${colApps.length}</div>
+        </div>
+        ${cards || `<div style="text-align:center;padding:24px;color:var(--text-3);font-size:12px">Empty</div>`}
+      </div>`;
+        }).join('');
+    }
+
+    async function moveApp(id, status) {
+        try {
+            await api.patch(`/api/applications/${id}`, { status });
+            toast(`Status → ${status}`, 'success');
+            loadApps();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteApp(id) {
+        if (!confirm('Remove this application?')) return;
+        try {
+            await api.del(`/api/applications/${id}`);
+            toast('Application removed', 'info');
+            loadApps();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+
+    loadApps();
+</script>
+{% endblock %}

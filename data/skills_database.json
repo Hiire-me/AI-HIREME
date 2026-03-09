@@ -1,0 +1,90 @@
+{
+  "programming_languages": [
+    "Python", "JavaScript", "TypeScript", "Java", "C", "C++", "C#", "Go", "Rust",
+    "Ruby", "PHP", "Swift", "Kotlin", "Scala", "R", "MATLAB", "Perl", "Shell",
+    "Bash", "PowerShell", "Haskell", "Elixir", "Erlang", "Clojure", "Lua", "Dart",
+    "Julia", "COBOL", "Fortran", "Assembly", "F#", "Groovy", "Objective-C", "VBA"
+  ],
+  "web_frontend": [
+    "React", "Vue.js", "Angular", "Svelte", "Next.js", "Nuxt.js", "Gatsby",
+    "HTML", "CSS", "SASS", "SCSS", "Less", "Tailwind CSS", "Bootstrap",
+    "Material UI", "Chakra UI", "Ant Design", "Webpack", "Vite", "Rollup",
+    "Babel", "ESLint", "Prettier", "jQuery", "Redux", "Zustand", "MobX",
+    "GraphQL", "Apollo", "React Query", "WebSockets", "WebGL", "Three.js",
+    "D3.js", "Chart.js", "Framer Motion", "GSAP", "Storybook", "Cypress",
+    "Jest", "Testing Library", "Playwright", "Selenium"
+  ],
+  "web_backend": [
+    "Node.js", "Express.js", "FastAPI", "Flask", "Django", "Spring Boot",
+    "Rails", "Laravel", "ASP.NET", "Gin", "Echo", "Fiber", "Nest.js",
+    "REST API", "gRPC", "GraphQL", "Microservices", "Serverless",
+    "OAuth", "JWT", "WebSockets", "OpenAPI", "Swagger", "Nginx", "Apache"
+  ],
+  "databases": [
+    "PostgreSQL", "MySQL", "SQLite", "SQL Server", "Oracle",
+    "MongoDB", "Redis", "Cassandra", "DynamoDB", "Firestore",
+    "Elasticsearch", "InfluxDB", "Neo4j", "CockroachDB", "Supabase",
+    "SQL", "NoSQL", "ORM", "SQLAlchemy", "Prisma", "Sequelize",
+    "Hibernate", "Database Design", "Data Modelling", "ETL", "Migrations"
+  ],
+  "cloud_devops": [
+    "AWS", "GCP", "Azure", "Vercel", "Netlify", "Heroku", "DigitalOcean",
+    "Docker", "Kubernetes", "Terraform", "Ansible", "Chef", "Puppet",
+    "CI/CD", "GitHub Actions", "GitLab CI", "Jenkins", "CircleCI",
+    "Prometheus", "Grafana", "Datadog", "Splunk", "ELK Stack",
+    "Nginx", "Load Balancing", "Auto Scaling", "Lambda", "CloudFormation",
+    "Helm", "ArgoCD", "Istio", "Service Mesh", "SRE", "Infrastructure as Code"
+  ],
+  "data_science_ml": [
+    "Machine Learning", "Deep Learning", "NLP", "Computer Vision",
+    "PyTorch", "TensorFlow", "Keras", "scikit-learn", "Hugging Face",
+    "BERT", "GPT", "LLM", "Transformers", "XGBoost", "LightGBM",
+    "Pandas", "NumPy", "SciPy", "Matplotlib", "Seaborn", "Plotly",
+    "Spark", "Hadoop", "Airflow", "MLflow", "Kubeflow", "DVC",
+    "Feature Engineering", "Data Pipeline", "A/B Testing",
+    "Statistics", "Linear Algebra", "Probability", "Bayesian Inference",
+    "Reinforcement Learning", "GAN", "Diffusion Models", "RAG",
+    "Vector Database", "Pinecone", "FAISS", "LangChain", "OpenAI"
+  ],
+  "mobile": [
+    "React Native", "Flutter", "Swift", "SwiftUI", "Kotlin", "Android",
+    "iOS", "Xcode", "Android Studio", "Jetpack Compose", "Core Data",
+    "Firebase", "Push Notifications", "App Store", "Google Play",
+    "MVVM", "Redux", "BLoC", "REST API", "GraphQL"
+  ],
+  "security": [
+    "Cybersecurity", "Penetration Testing", "OWASP", "Kali Linux",
+    "Metasploit", "Burp Suite", "Wireshark", "Nmap", "SIEM",
+    "Splunk", "QRadar", "Incident Response", "Threat Intelligence",
+    "Cryptography", "PKI", "Zero Trust", "IAM", "SOC", "SAST", "DAST",
+    "Vulnerability Assessment", "Ethical Hacking", "Security Auditing"
+  ],
+  "product_design": [
+    "Product Management", "UX Design", "UI Design", "Figma", "Sketch",
+    "Adobe XD", "InVision", "Prototyping", "Wireframing", "User Research",
+    "Usability Testing", "A/B Testing", "Roadmapping", "Agile", "Scrum",
+    "Kanban", "JIRA", "Confluence", "OKRs", "Stakeholder Management",
+    "Product Strategy", "Go-to-Market", "Customer Journey Mapping"
+  ],
+  "data_engineering": [
+    "Spark", "Kafka", "Flink", "Hadoop", "Databricks", "Snowflake",
+    "dbt", "Airflow", "Prefect", "Luigi", "Redshift", "BigQuery",
+    "Data Warehouse", "Data Lake", "Delta Lake", "Iceberg", "ETL",
+    "ELT", "Streaming", "Batch Processing", "Data Quality"
+  ],
+  "soft_skills": [
+    "Communication", "Leadership", "Teamwork", "Problem Solving",
+    "Critical Thinking", "Time Management", "Project Management",
+    "Mentoring", "Public Speaking", "Technical Writing",
+    "Cross-functional Collaboration", "Adaptability", "Creativity",
+    "Attention to Detail", "Analytical Thinking", "Strategic Thinking"
+  ],
+  "tools_methodologies": [
+    "Git", "GitHub", "GitLab", "Bitbucket", "Linux", "Unix",
+    "Vim", "VS Code", "IntelliJ", "Eclipse", "Xcode",
+    "Postman", "Insomnia", "Charles Proxy",
+    "Agile", "Scrum", "Kanban", "Waterfall", "TDD", "BDD", "DDD",
+    "Clean Code", "Design Patterns", "SOLID", "Microservices",
+    "Event-Driven Architecture", "Domain-Driven Design"
+  ]
+}

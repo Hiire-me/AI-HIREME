@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Resume Builder{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">Resume Builder</div>
+        <div class="page-subtitle">Upload your CV to extract skills, then generate AI-tailored resumes</div>
+    </div>
+</div>
+
+<div class="grid-2" style="gap:24px; align-items:start">
+
+    <!-- Left: Upload + Extracted Skills -->
+    <div>
+        <div class="card" style="margin-bottom:20px">
+            <div class="card-header">
+                <div class="card-title">Upload Resume</div>
+            </div>
+            <div class="drop-zone" id="drop-zone">
+                <input type="file" id="resume-file" accept=".pdf,.doc,.docx,.txt" />
+                <div class="drop-text">Drop your resume here</div>
+                <div class="drop-sub">PDF, DOCX or TXT • Max 16 MB</div>
+            </div>
+            <div id="upload-status" style="margin-top:12px"></div>
+            <button class="btn btn-primary" style="width:100%;margin-top:12px" id="btn-upload" disabled>
+                Upload & Parse
+            </button>
+        </div>
+
+        <!-- Uploaded Resumes -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">My Resumes</div>
+                <button class="btn btn-secondary btn-sm" onclick="loadResumes()">↻ Refresh</button>
+            </div>
+            <div id="resumes-list">
+                <div style="text-align:center;padding:20px;color:var(--text-3)">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: AI Resume Generator -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">AI Resume Generator</div>
+                <span class="badge badge-primary">Powered by Gemini</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">JOB TITLE</label>
+                <input id="gen-title" class="form-control" placeholder="e.g. Senior Backend Engineer" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">COMPANY</label>
+                <input id="gen-company" class="form-control" placeholder="e.g. OpenAI" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">JOB DESCRIPTION (paste here)</label>
+                <textarea id="gen-desc" class="form-control" rows="5"
+                    placeholder="Paste the job description…"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-primary" onclick="generateResume()">Generate Resume</button>
+                <button class="btn btn-secondary" onclick="generateCoverLetter()">Cover Letter</button>
+            </div>
+
+            <div id="gen-output" style="margin-top:20px;display:none">
+                <div class="divider"></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <strong style="font-size:13px">Generated Output</strong>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadResume()">Download .md</button>
+                </div>
+                <div id="md-preview"></div>
+            </div>
+        </div>
+
+        <!-- Extracted Skills -->
+        <div class="card" style="margin-top:20px">
+            <div class="card-header">
+                <div class="card-title">Extracted Skills</div>
+                <span class="badge badge-cyan" id="skill-count">0 skills</span>
+            </div>
+            <div id="skills-cloud" style="line-height:2">
+                <div style="color:var(--text-3);font-size:13px">Upload a resume to extract skills automatically.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let extractedSkills = [];
+    let generatedContent = '';
+
+    // ─── Upload ──────────────────────────────────────────────────────
+    const fileInput = document.getElementById('resume-file');
+    const dropZone = document.getElementById('drop-zone');
+    const btnUpload = document.getElementById('btn-upload');
+    const statusEl = document.getElementById('upload-status');
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            btnUpload.disabled = false;
+            statusEl.innerHTML = `<span class="badge badge-cyan">${fileInput.files[0].name}</span>`;
+        }
+    });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault(); dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            btnUpload.disabled = false;
+            statusEl.innerHTML = `<span class="badge badge-cyan">${e.dataTransfer.files[0].name}</span>`;
+        }
+    });
+
+    document.getElementById('btn-upload').addEventListener('click', async () => {
+        if (!fileInput.files.length) return;
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        showLoading('Parsing resume…');
+        try {
+            const r = await fetch('/api/resume/upload', { method: 'POST', body: fd });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Upload failed');
+            extractedSkills = data.skills || [];
+            renderSkills(extractedSkills);
+            statusEl.innerHTML = `<span class="badge badge-success">Parsed! ${data.skill_count} skills found</span>`;
+            toast(`Uploaded: ${data.filename} — ${data.skill_count} skills extracted`, 'success');
+            loadResumes();
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    });
+
+    function renderSkills(skills) {
+        document.getElementById('skill-count').textContent = skills.length + ' skills';
+        document.getElementById('skills-cloud').innerHTML = skills.length
+            ? skills.map(s => `<span class="skill-tag">${s}</span>`).join('')
+            : '<div style="color:var(--text-3);font-size:13px">No skills extracted yet.</div>';
+    }
+
+    // ─── Resume list ─────────────────────────────────────────────────
+    async function loadResumes() {
+        const el = document.getElementById('resumes-list');
+        try {
+            const list = await api.get('/api/resume/list');
+            if (!list.length) {
+                el.innerHTML = `<div style="color:var(--text-3);font-size:13px;text-align:center;padding:16px">No resumes yet. Upload one above!</div>`;
+                return;
+            }
+            el.innerHTML = list.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:600">${r.filename}</div>
+          <div style="font-size:11px;color:var(--text-3)">${r.skill_count} skills • ${timeAgo(r.created_at)}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadResumeSkills(${JSON.stringify(r.skills)})">Load Skills</button>
+      </div>`).join('');
+            // Auto-load skills from latest
+            if (list[0].skills.length) {
+                extractedSkills = list[0].skills;
+                renderSkills(extractedSkills);
+            }
+        } catch (e) { el.innerHTML = '<p style="color:var(--accent-err)">Failed to load</p>'; }
+    }
+
+    function loadResumeSkills(skills) {
+        extractedSkills = skills;
+        renderSkills(skills);
+        toast('Skills loaded from resume', 'info');
+    }
+
+    // ─── Generate ────────────────────────────────────────────────────
+    async function generateResume() {
+        const payload = {
+            job_title: document.getElementById('gen-title').value,
+            company: document.getElementById('gen-company').value,
+            job_description: document.getElementById('gen-desc').value,
+        };
+        showLoading('Generating tailored resume…');
+        try {
+            const r = await api.post('/api/resume/generate', payload);
+            generatedContent = r.content;
+            showOutput(generatedContent);
+            toast('Resume generated!', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    async function generateCoverLetter() {
+        const payload = {
+            job_title: document.getElementById('gen-title').value,
+            company: document.getElementById('gen-company').value,
+            job_description: document.getElementById('gen-desc').value,
+        };
+        showLoading('Writing cover letter…');
+        try {
+            const r = await api.post('/api/cover-letter/generate', payload);
+            generatedContent = r.content;
+            showOutput(generatedContent);
+            toast('Cover letter generated!', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    function showOutput(content) {
+        document.getElementById('gen-output').style.display = 'block';
+        const preview = document.getElementById('md-preview');
+        preview.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : `<pre>${content}</pre>`;
+    }
+
+    async function downloadResume() {
+        if (!generatedContent) return;
+        const r = await fetch('/api/resume/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: generatedContent })
+        });
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'tailored_resume.md';
+        a.click();
+    }
+
+    loadResumes();
+</script>
+{% endblock %}

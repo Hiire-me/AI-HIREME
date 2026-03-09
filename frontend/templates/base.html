@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% block title %}Dashboard{% endblock %} — AutoJobAgent</title>
+    <meta name="description" content="Autonomous AI-powered job search and application platform" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div class="app-layout">
+
+        <!-- Top Navigation -->
+        <header class="top-nav" id="top-nav">
+            <div class="nav-left">
+                <a href="{{ url_for('jobs.jobs_page') }}"
+                    class="nav-item {% if request.endpoint == 'jobs.jobs_page' %}active{% endif %}" id="nav-jobs">Job
+                    Board</a>
+                <a href="{{ url_for('matching.match_page') }}"
+                    class="nav-item {% if request.endpoint == 'matching.match_page' %}active{% endif %}"
+                    id="nav-match">Skill Match</a>
+            </div>
+
+            <div class="nav-center">
+                <a href="/" class="logo-text">AutoJobAgent</a>
+            </div>
+
+            <div class="nav-right">
+                <a href="{{ url_for('resume.resume_page') }}"
+                    class="nav-item {% if request.endpoint == 'resume.resume_page' %}active{% endif %}"
+                    id="nav-resume">Resume Builder</a>
+                <a href="{{ url_for('applications.applications_page') }}"
+                    class="nav-item {% if request.endpoint == 'applications.applications_page' %}active{% endif %}"
+                    id="nav-apps">Applications</a>
+                <div class="user-pill" style="margin-left: 20px;">
+                    <div class="avatar" style="width: 28px; height: 28px; font-size: 11px;">{{
+                        current_user.full_name[0].upper() if current_user.full_name else '?' }}</div>
+                </div>
+                <a href="{{ url_for('auth.logout') }}" class="nav-item" style="margin-left: -10px;">Sign Out</a>
+            </div>
+        </header>
+
+        {% block hero %}{% endblock %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ─── Global API helper ───────────────────────────────────────────
+        const api = {
+            async get(url) {
+                const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            },
+            async post(url, data) {
+                const r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!r.ok) {
+                    const e = await r.json().catch(() => ({ error: 'Request failed' }));
+                    throw new Error(e.error || `HTTP ${r.status}`);
+                }
+                return r.json();
+            },
+            async patch(url, data) {
+                const r = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return r.json();
+            },
+            async del(url) {
+                const r = await fetch(url, { method: 'DELETE' });
+                return r.json();
+            }
+        };
+
+        // ─── Toast ───────────────────────────────────────────────────────
+        function toast(msg, type = 'info') {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.innerHTML = `${msg}`;
+            document.getElementById('toasts').appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        // ─── Loading overlay ─────────────────────────────────────────────
+        function showLoading(msg = 'Processing…') {
+            let el = document.getElementById('loading-overlay');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'loading-overlay';
+                el.className = 'loading-overlay';
+                document.body.appendChild(el);
+            }
+            el.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+            el.style.display = 'flex';
+        }
+        function hideLoading() {
+            const el = document.getElementById('loading-overlay');
+            if (el) el.style.display = 'none';
+        }
+
+        // ─── Match bar fill class ─────────────────────────────────────────
+        function scoreClass(s) {
+            return s >= 70 ? 'fill-strong' : s >= 45 ? 'fill-good' : 'fill-low';
+        }
+
+        // ─── Badge for recommendation ────────────────────────────────────
+        function recBadge(rec) {
+            const map = {
+                'Strong Match': 'badge-success',
+                'Good Match': 'badge-primary',
+                'Consider': 'badge-warn',
+                'Low Match': 'badge-err',
+            };
+            return `<span class="badge ${map[rec] || 'badge-gray'}">${rec || '—'}</span>`;
+        }
+
+        // ─── Format salary ───────────────────────────────────────────────
+        function fmtSalary(min, max) {
+            if (!min && !max) return null;
+            const k = n => n ? '$' + (n / 1000).toFixed(0) + 'k' : '';
+            return min && max ? `${k(min)}–${k(max)}` : k(min || max);
+        }
+
+        // ─── Format date ─────────────────────────────────────────────────
+        function timeAgo(isoStr) {
+            if (!isoStr) return '—';
+            const diff = Date.now() - new Date(isoStr);
+            const d = Math.floor(diff / 86400000);
+            if (d === 0) return 'Today';
+            if (d === 1) return 'Yesterday';
+            if (d < 30) return `${d}d ago`;
+            return new Date(isoStr).toLocaleDateString();
+        }
+
+        // ─── Score ring ──────────────────────────────────────────────────
+        function scoreRing(score, id) {
+            const r = 40, circ = 2 * Math.PI * r;
+            const offset = circ - (score / 100) * circ;
+            const col = score >= 70 ? '#34d399' : score >= 45 ? '#7c3aed' : '#f59e0b';
+            return `
+  <div class="score-ring" id="ring-${id}">
+    <svg width="96" height="96" viewBox="0 0 96 96">
+      <circle class="track" cx="48" cy="48" r="${r}"/>
+      <circle class="fill" cx="48" cy="48" r="${r}"
+        stroke="${col}"
+        stroke-dasharray="${circ}"
+        stroke-dashoffset="${offset}"
+        style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)"/>
+    </svg>
+    <div class="ring-text">
+      <div class="ring-value" style="color:${col}">${Math.round(score)}</div>
+      <div class="ring-label">MATCH %</div>
+    </div>
+  </div>`;
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

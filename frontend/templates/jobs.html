@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block title %}Job Board{% endblock %}
+
+{% block hero %}
+<div class="hero-section">
+    <div class="hero-subtitle">AutoJobAgent Isn't Just A Platform – It's Your Career Masterpiece</div>
+    <div class="hero-bg-text">Careers</div>
+    <img src="{{ url_for('static', filename='img/corporate_building.png') }}" alt="Corporate Building"
+        class="hero-image" />
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-top: 20px;">
+    <div>
+        <div class="page-title">Job Board</div>
+        <div class="page-subtitle">Browse jobs from Remotive, Lever, Greenhouse & Adzuna</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="btn-ats" title="Connect ATS portals">
+            Connect ATS Portal
+        </button>
+        <button class="btn btn-primary" id="btn-fetch">
+            Fetch Live Jobs
+        </button>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid" id="jobs-stats" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stat-card">
+        <div class="stat-value" id="st-total">—</div>
+        <div class="stat-label">Total Jobs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="st-remote">—</div>
+        <div class="stat-label">Remote</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="st-hybrid">—</div>
+        <div class="stat-label">Hybrid</div>
+    </div>
+    <div class="stat-card" title="Jobs from Lever ATS">
+        <div class="stat-value" id="st-lever">—</div>
+        <div class="stat-label">Lever</div>
+    </div>
+    <div class="stat-card" title="Jobs from Greenhouse ATS">
+        <div class="stat-value" id="st-greenhouse">—</div>
+        <div class="stat-label">Greenhouse</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-row">
+    <div class="filter-item" style="flex:2">
+        <label>SEARCH</label>
+        <input id="f-search" class="form-control" placeholder="Title, company, or keyword…" />
+    </div>
+    <div class="filter-item">
+        <label>WORK TYPE</label>
+        <select id="f-remote" class="form-control">
+            <option value="">All</option>
+            <option value="remote">Remote</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="onsite">Onsite</option>
+        </select>
+    </div>
+    <div class="filter-item">
+        <label>JOB TYPE</label>
+        <select id="f-type" class="form-control">
+            <option value="">All</option>
+            <option value="full-time">Full-time</option>
+            <option value="part-time">Part-time</option>
+            <option value="contract">Contract</option>
+        </select>
+    </div>
+    <div class="filter-item">
+        <label>POSTED</label>
+        <select id="f-date" class="form-control">
+            <option value="">Any time</option>
+            <option value="24h">Last 24h</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+        </select>
+    </div>
+    <div class="filter-item" style="max-width:120px">
+        <label>&nbsp;</label>
+        <button class="btn btn-secondary" style="width:100%" id="btn-search">Search</button>
+    </div>
+</div>
+
+<!-- Job Grid -->
+<div id="jobs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    <div class="empty-state" style="grid-column:1/-1">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;color:var(--text-3)">Loading jobs…</p>
+    </div>
+</div>
+
+<!-- Fetch Modal (tabbed: General / Lever ATS / Greenhouse ATS) -->
+<div class="modal-backdrop" id="fetch-modal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <div class="modal-title">Fetch Live Jobs</div>
+            <button class="modal-close" onclick="closeFetchModal()">✕</button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
+            <button class="fetch-tab active" onclick="switchTab('general')" id="tab-general"
+                style="flex:1;padding:9px;background:none;border:none;color:var(--text-1);cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid var(--accent-1)">
+                All Sources</button>
+            <button class="fetch-tab" onclick="switchTab('lever')" id="tab-lever"
+                style="flex:1;padding:9px;background:none;border:none;color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent">
+                Lever ATS</button>
+            <button class="fetch-tab" onclick="switchTab('greenhouse')" id="tab-greenhouse"
+                style="flex:1;padding:9px;background:none;border:none;color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent">
+                Greenhouse</button>
+        </div>
+
+        <!-- General Tab -->
+        <div id="pane-general">
+            <div class="form-group">
+                <label class="form-label">SEARCH QUERY</label>
+                <input id="fetch-q" class="form-control" placeholder="e.g. Python Developer"
+                    value="software developer" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">LOCATION</label>
+                <input id="fetch-loc" class="form-control" placeholder="e.g. London or Remote" value="remote" />
+            </div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:16px">
+                Fetches from: <strong style="color:var(--text-2)">Remotive</strong> (always free) •
+                <strong style="color:var(--text-2)">Adzuna</strong> (if API key set) •
+                <strong style="color:var(--text-2)">Lever</strong> (top 5 companies) •
+                <strong style="color:var(--text-2)">Greenhouse</strong> (top 5 companies)
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-secondary" onclick="closeFetchModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="doFetch()">Fetch All Sources</button>
+            </div>
+        </div>
+
+        <!-- Lever Tab -->
+        <div id="pane-lever" style="display:none">
+            <div
+                style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:8px">
+                <div style="font-size:12px;color:var(--text-2)">Lever is a popular ATS. Enter any company's Lever slug
+                    to pull their open roles directly from the public API — no auth required.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">COMPANY SLUG</label>
+                <input id="lever-slug" class="form-control" placeholder="e.g. stripe, netflix, notion, vercel" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">FILTER BY KEYWORD (optional)</label>
+                <input id="lever-q" class="form-control" placeholder="e.g. backend, ml, design" />
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+                <span style="font-size:11px;color:var(--text-3)">Quick-fill company:</span>
+                <button onclick="document.getElementById('lever-slug').value='stripe'"
+                    class="btn btn-secondary btn-sm">stripe</button>
+                <button onclick="document.getElementById('lever-slug').value='netflix'"
+                    class="btn btn-secondary btn-sm">netflix</button>
+                <button onclick="document.getElementById('lever-slug').value='notion'"
+                    class="btn btn-secondary btn-sm">notion</button>
+                <button onclick="document.getElementById('lever-slug').value='vercel'"
+                    class="btn btn-secondary btn-sm">vercel</button>
+                <button onclick="document.getElementById('lever-slug').value='discord'"
+                    class="btn btn-secondary btn-sm">discord</button>
+                <button onclick="document.getElementById('lever-slug').value='rippling'"
+                    class="btn btn-secondary btn-sm">rippling</button>
+                <button onclick="document.getElementById('lever-slug').value='figma'"
+                    class="btn btn-secondary btn-sm">figma</button>
+                <button onclick="document.getElementById('lever-slug').value='cloudflare'"
+                    class="btn btn-secondary btn-sm">cloudflare</button>
+                <button onclick="document.getElementById('lever-slug').value='airtable'"
+                    class="btn btn-secondary btn-sm">airtable</button>
+                <button onclick="document.getElementById('lever-slug').value='linear'"
+                    class="btn btn-secondary btn-sm">linear</button>
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-secondary" onclick="closeFetchModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="doFetchLever()">Pull from Lever</button>
+            </div>
+        </div>
+
+        <!-- Greenhouse Tab -->
+        <div id="pane-greenhouse" style="display:none">
+            <div
+                style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px">
+                <div style="font-size:12px;color:var(--text-2)">Greenhouse is a leading ATS used by many top tech
+                    companies. Enter a company slug to pull all their open jobs from the public board API.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">COMPANY SLUG</label>
+                <input id="gh-slug" class="form-control" placeholder="e.g. shopify, airbnb, reddit, lyft" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">FILTER BY KEYWORD (optional)</label>
+                <input id="gh-q" class="form-control" placeholder="e.g. engineer, data" />
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+                <span style="font-size:11px;color:var(--text-3)">Quick-fill company:</span>
+                <button onclick="document.getElementById('gh-slug').value='shopify'"
+                    class="btn btn-secondary btn-sm">shopify</button>
+                <button onclick="document.getElementById('gh-slug').value='airbnb'"
+                    class="btn btn-secondary btn-sm">airbnb</button>
+                <button onclick="document.getElementById('gh-slug').value='reddit'"
+                    class="btn btn-secondary btn-sm">reddit</button>
+                <button onclick="document.getElementById('gh-slug').value='lyft'"
+                    class="btn btn-secondary btn-sm">lyft</button>
+                <button onclick="document.getElementById('gh-slug').value='dropbox'"
+                    class="btn btn-secondary btn-sm">dropbox</button>
+                <button onclick="document.getElementById('gh-slug').value='github'"
+                    class="btn btn-secondary btn-sm">github</button>
+                <button onclick="document.getElementById('gh-slug').value='hashicorp'"
+                    class="btn btn-secondary btn-sm">hashicorp</button>
+                <button onclick="document.getElementById('gh-slug').value='segment'"
+                    class="btn btn-secondary btn-sm">segment</button>
+                <button onclick="document.getElementById('gh-slug').value='brex'"
+                    class="btn btn-secondary btn-sm">brex</button>
+                <button onclick="document.getElementById('gh-slug').value='databricks'"
+                    class="btn btn-secondary btn-sm">databricks</button>
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-secondary" onclick="closeFetchModal()">Cancel</button>
+                <button class="btn btn-primary btn-success" style="background:var(--grad-success)"
+                    onclick="doFetchGreenhouse()">Pull from Greenhouse</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ATS Connect Modal (save company portals to your account) -->
+<div class="modal-backdrop" id="ats-modal">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <div class="modal-title">Save ATS Portal</div>
+            <button class="modal-close"
+                onclick="document.getElementById('ats-modal').classList.remove('open')">✕</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:16px">
+            Save a company's Lever or Greenhouse board to your account for one-click syncing.
+        </p>
+        <div class="form-group">
+            <label class="form-label">ATS PROVIDER</label>
+            <select id="ats-provider" class="form-control">
+                <option value="lever">Lever</option>
+                <option value="greenhouse">Greenhouse</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">COMPANY SLUG</label>
+            <input id="ats-slug" class="form-control" placeholder="e.g. stripe, airbnb" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">DISPLAY NAME (optional)</label>
+            <input id="ats-name" class="form-control" placeholder="e.g. Stripe Inc." />
+        </div>
+
+        <div style="margin-bottom:16px">
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">YOUR SAVED PORTALS</div>
+            <div id="ats-saved-list" style="font-size:12px;color:var(--text-2)">Loading…</div>
+        </div>
+
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary"
+                onclick="document.getElementById('ats-modal').classList.remove('open')">Close</button>
+            <button class="btn btn-primary" onclick="saveATSPortal()">Save Portal</button>
+        </div>
+    </div>
+</div>
+
+<!-- Job Detail Modal -->
+<div class="modal-backdrop" id="job-modal">
+    <div class="modal" style="max-width:680px">
+        <div class="modal-header">
+            <div class="modal-title" id="jm-title">Job Details</div>
+            <button class="modal-close" onclick="closeJobModal()">✕</button>
+        </div>
+        <div id="jm-body"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allJobs = [];
+
+    // ─── Tab switching ────────────────────────────────────────────────
+    function switchTab(name) {
+        ['general', 'lever', 'greenhouse'].forEach(t => {
+            document.getElementById('pane-' + t).style.display = t === name ? '' : 'none';
+            const btn = document.getElementById('tab-' + t);
+            btn.style.color = t === name ? 'var(--text-1)' : 'var(--text-2)';
+            btn.style.borderBottomColor = t === name ? 'var(--accent-1)' : 'transparent';
+        });
+    }
+
+    // ─── Load Jobs ───────────────────────────────────────────────────
+    async function loadJobs() {
+        const q = document.getElementById('f-search').value;
+        const remote = document.getElementById('f-remote').value;
+        const jtype = document.getElementById('f-type').value;
+        const date = document.getElementById('f-date').value;
+
+        let url = `/api/jobs?limit=80`;
+        if (q) url += `&query=${encodeURIComponent(q)}`;
+        if (remote) url += `&remote=${remote}`;
+        if (jtype) url += `&type=${encodeURIComponent(jtype)}`;
+        if (date) url += `&date_posted=${date}`;
+
+        try {
+            const data = await api.get(url);
+            allJobs = data.jobs;
+            renderJobs(allJobs);
+            updateStats(data);
+        } catch (e) { toast('Failed to load jobs: ' + e.message, 'error'); }
+    }
+
+    function updateStats(data) {
+        const jobs = data.jobs || [];
+        document.getElementById('st-total').textContent = data.total;
+        document.getElementById('st-remote').textContent = jobs.filter(j => j.remote_type === 'remote').length;
+        document.getElementById('st-hybrid').textContent = jobs.filter(j => j.remote_type === 'hybrid').length;
+        document.getElementById('st-lever').textContent = jobs.filter(j => j.source === 'lever').length;
+        document.getElementById('st-greenhouse').textContent = jobs.filter(j => j.source === 'greenhouse').length;
+    }
+
+    function sourceBadge(src) {
+        if (src === 'lever') return `<span class="badge badge-primary" style="font-size:10px">Lever</span>`;
+        if (src === 'greenhouse') return `<span class="badge badge-success" style="font-size:10px">GH</span>`;
+        if (src === 'remotive') return `<span class="badge badge-cyan" style="font-size:10px">Remotive</span>`;
+        if (src === 'adzuna') return `<span class="badge badge-warn" style="font-size:10px">Adzuna</span>`;
+        return `<span class="badge badge-gray" style="font-size:10px">${src || '?'}</span>`;
+    }
+
+    function renderJobs(jobs) {
+        const grid = document.getElementById('jobs-grid');
+        if (!jobs.length) {
+            grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-title">No jobs found</div>
+      <div class="empty-sub">Try different filters or click "Fetch Live Jobs" to pull fresh listings from Lever, Greenhouse & Remotive.</div>
+    </div>`;
+            return;
+        }
+        grid.innerHTML = jobs.map(j => {
+            const sal = fmtSalary(j.salary_min, j.salary_max);
+            const tags = (j.required_skills || []).slice(0, 4);
+            const remBadge = j.remote_type === 'remote' ? '<span class="badge badge-success">Remote</span>'
+                : j.remote_type === 'hybrid' ? '<span class="badge badge-warn">Hybrid</span>'
+                    : '<span class="badge badge-gray">Onsite</span>';
+            return `
+    <div class="job-card" onclick="showJob(${j.id})">
+      <div class="job-card-header">
+        <div class="company-logo">${j.company[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="job-title">${j.title}</div>
+          <div class="job-company">${j.company}</div>
+        </div>
+        ${sourceBadge(j.source)}
+      </div>
+      <div class="job-meta">
+        ${remBadge}
+        <span class="badge badge-gray">${j.location || 'N/A'}</span>
+        ${sal ? `<span class="badge badge-cyan">${sal}</span>` : ''}
+        <span class="badge badge-gray">${timeAgo(j.posted_date)}</span>
+      </div>
+      <div class="job-skills">
+        ${tags.map(s => `<span class="skill-tag">${s}</span>`).join('')}
+        ${(j.required_skills || []).length > 4 ? `<span class="skill-tag" style="opacity:.5">+${j.required_skills.length - 4}</span>` : ''}
+      </div>
+    </div>`;
+        }).join('');
+    }
+
+    // ─── Job Detail ───────────────────────────────────────────────────
+    async function showJob(id) {
+        const modal = document.getElementById('job-modal');
+        const body = document.getElementById('jm-body');
+        body.innerHTML = `<div style="text-align:center;padding:30px"><div class="spinner"></div></div>`;
+        modal.classList.add('open');
+        try {
+            const j = await api.get(`/api/jobs/${id}`);
+            document.getElementById('jm-title').textContent = j.title;
+            const sal = fmtSalary(j.salary_min, j.salary_max);
+            body.innerHTML = `
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+        <span class="badge badge-gray">${j.company}</span>
+        <span class="badge badge-gray">${j.location || 'N/A'}</span>
+        ${j.remote_type === 'remote' ? '<span class="badge badge-success">Remote</span>' : ''}
+        ${sal ? `<span class="badge badge-cyan">${sal}</span>` : ''}
+        ${sourceBadge(j.source)}
+      </div>
+      <div style="margin-bottom:16px">
+        ${(j.required_skills || []).map(s => `<span class="skill-tag">${s}</span>`).join('')}
+      </div>
+      <div class="divider"></div>
+      <p style="color:var(--text-2);font-size:13px;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto">${(j.description || 'No description available.').slice(0, 2000)}</p>
+      <div class="divider"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="applyToJob(${j.id},'${j.title.replace(/'/g, "\\'")}')">Track Application</button>
+        ${j.url ? `<a href="${j.url}" target="_blank" class="btn btn-secondary">View Original</a>` : ''}
+      </div>`;
+        } catch (e) { body.innerHTML = `<p style="color:var(--accent-err)">${e.message}</p>`; }
+    }
+
+    async function applyToJob(id, title) {
+        try {
+            await api.post('/api/applications', { job_id: id });
+            toast(`Tracking application for "${title}"!`, 'success');
+            closeJobModal();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+    function closeJobModal() { document.getElementById('job-modal').classList.remove('open'); }
+
+    // ─── Fetch controls ───────────────────────────────────────────────
+    document.getElementById('btn-fetch').addEventListener('click', () => document.getElementById('fetch-modal').classList.add('open'));
+    function closeFetchModal() { document.getElementById('fetch-modal').classList.remove('open'); }
+
+    async function doFetch() {
+        const q = document.getElementById('fetch-q').value;
+        const loc = document.getElementById('fetch-loc').value;
+        closeFetchModal(); showLoading('Fetching from all sources…');
+        try {
+            const r = await api.post('/api/jobs/fetch', { query: q, location: loc });
+            toast(`Fetched ${r.fetched} jobs — ${r.new} new!`, 'success');
+            loadJobs();
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    async function doFetchLever() {
+        const slug = document.getElementById('lever-slug').value.trim();
+        const q = document.getElementById('lever-q').value.trim();
+        if (!slug) { toast('Enter a company slug', 'warn'); return; }
+        closeFetchModal(); showLoading(`Fetching from Lever (${slug})…`);
+        try {
+            const r = await api.post('/api/jobs/fetch/lever', { company_slug: slug, query: q });
+            toast(`Lever (${slug}): ${r.fetched} found, ${r.new} new saved`, 'success');
+            loadJobs();
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    async function doFetchGreenhouse() {
+        const slug = document.getElementById('gh-slug').value.trim();
+        const q = document.getElementById('gh-q').value.trim();
+        if (!slug) { toast('Enter a company slug', 'warn'); return; }
+        closeFetchModal(); showLoading(`Fetching from Greenhouse (${slug})…`);
+        try {
+            const r = await api.post('/api/jobs/fetch/greenhouse', { company_slug: slug, query: q });
+            toast(`Greenhouse (${slug}): ${r.fetched} found, ${r.new} new saved`, 'success');
+            loadJobs();
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    // ─── ATS Portal Save ──────────────────────────────────────────────
+    document.getElementById('btn-ats').addEventListener('click', () => {
+        document.getElementById('ats-modal').classList.add('open');
+        loadATSSaved();
+    });
+
+    async function loadATSSaved() {
+        const el = document.getElementById('ats-saved-list');
+        try {
+            const list = await api.get('/auth/ats/connections');
+            if (!list.length) { el.textContent = 'No saved portals yet.'; return; }
+            el.innerHTML = list.map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <strong>${c.company_name}</strong>
+          <span class="badge ${c.provider === 'lever' ? 'badge-primary' : 'badge-success'}" style="margin-left:6px;font-size:10px">${c.provider}</span>
+          ${c.last_synced ? `<span style="color:var(--text-3);font-size:10px;margin-left:6px">${timeAgo(c.last_synced)}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="quickSync(${c.id},'${c.company_name}')">Sync</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePortal(${c.id})">Delete</button>
+        </div>
+      </div>`).join('');
+        } catch (e) { el.textContent = 'Error loading.'; }
+    }
+
+    async function saveATSPortal() {
+        const provider = document.getElementById('ats-provider').value;
+        const slug = document.getElementById('ats-slug').value.trim();
+        const name = document.getElementById('ats-name').value.trim();
+        if (!slug) { toast('Enter a company slug', 'warn'); return; }
+        try {
+            await api.post('/auth/ats/connect', { provider, company_slug: slug, company_name: name });
+            toast(`Portal saved: ${slug} (${provider})`, 'success');
+            document.getElementById('ats-slug').value = '';
+            document.getElementById('ats-name').value = '';
+            loadATSSaved();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function quickSync(id, name) {
+        showLoading(`Syncing ${name}…`);
+        try {
+            const r = await api.post(`/auth/ats/sync/${id}`, {});
+            toast(`${name}: ${r.fetched} jobs, ${r.new} new`, 'success');
+            loadJobs(); loadATSSaved();
+        } catch (e) { toast(e.message, 'error'); }
+        finally { hideLoading(); }
+    }
+
+    async function deletePortal(id) {
+        if (!confirm('Remove this portal?')) return;
+        await api.del(`/auth/ats/connections/${id}`);
+        toast('Portal removed', 'info');
+        loadATSSaved();
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────
+    document.getElementById('btn-search').addEventListener('click', loadJobs);
+    document.getElementById('f-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadJobs(); });
+    loadJobs();
+</script>
+{% endblock %}
