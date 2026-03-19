@@ -60,22 +60,6 @@ def create_app():
     except Exception as e:
         print(f"[init] Celery config warning: {e}")
 
-    try:
-        import firebase_admin
-        from firebase_admin import credentials as fb_creds
-        if not firebase_admin._apps:
-            cred_path = os.path.join(base, '..', '..', 'firebase-service-account.json')
-            if os.path.exists(cred_path):
-                print(f"Initializing Firebase with service account: {cred_path}")
-                cred = fb_creds.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
-            else:
-                print("[init] No firebase-service-account.json found — Firebase disabled.")
-    except ImportError:
-        pass
-    except Exception as e:
-        print(f"Firebase Admin Init Error: {e}")
-
     # Blueprints
     from app.routes import resume, jobs, matching, applications, profile
     from app.routes import ws_events
