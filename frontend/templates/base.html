@@ -4,50 +4,50 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>{% block title %}Dashboard{% endblock %} — AutoJobAgent</title>
-    <meta name="description" content="Autonomous AI-powered job search and application platform" />
+    <title>{% block title %}Dashboard{% endblock %} — HIIREME</title>
+    <meta name="description" content="HIIREME — AI-powered job search and application platform" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     {% block head %}{% endblock %}
 </head>
 
 <body>
+    <div class="noise-overlay"></div>
     <div class="app-layout">
 
         <!-- Top Navigation -->
         <header class="top-nav" id="top-nav">
-            <div class="nav-left">
-                <a href="{{ url_for('jobs.jobs_page') }}"
-                    class="nav-item {% if request.endpoint == 'jobs.jobs_page' %}active{% endif %}" id="nav-jobs">Job
-                    Board</a>
-                <a href="{{ url_for('matching.match_page') }}"
-                    class="nav-item {% if request.endpoint == 'matching.match_page' %}active{% endif %}"
-                    id="nav-match">Skill Match</a>
-            </div>
+            <!-- Logo -->
+            <a href="/" class="logo-text">
+                HIIREME<span class="logo-dot"></span>
+            </a>
 
-            <div class="nav-center">
-                <a href="/" class="logo-text">AutoJobAgent</a>
-            </div>
+            <!-- Center Nav Links -->
+            <nav class="nav-center">
+                <a href="{{ url_for('jobs.jobs_page') }}" class="nav-item {% if request.endpoint == 'jobs.jobs_page' %}active{% endif %}">Job Board</a>
+                <a href="{{ url_for('matching.match_page') }}" class="nav-item {% if request.endpoint == 'matching.match_page' %}active{% endif %}">Skill Match</a>
+                <a href="{{ url_for('resume.resume_page') }}" class="nav-item {% if request.endpoint == 'resume.resume_page' %}active{% endif %}">Resume</a>
+                <a href="{{ url_for('applications.applications_page') }}" class="nav-item {% if request.endpoint == 'applications.applications_page' %}active{% endif %}">Applications</a>
+            </nav>
 
+            <!-- Right Actions -->
             <div class="nav-right">
-                <a href="{{ url_for('resume.resume_page') }}"
-                    class="nav-item {% if request.endpoint == 'resume.resume_page' %}active{% endif %}"
-                    id="nav-resume">Resume Builder</a>
-                <a href="{{ url_for('applications.applications_page') }}"
-                    class="nav-item {% if request.endpoint == 'applications.applications_page' %}active{% endif %}"
-                    id="nav-apps">Applications</a>
-                <div class="user-pill" style="margin-left: 20px;">
-                    <div class="avatar" style="width: 28px; height: 28px; font-size: 11px;">{{
-                        current_user.full_name[0].upper() if current_user.full_name else '?' }}</div>
+                <!-- Live Jobs Badge -->
+                <div id="live-badge-wrap" style="position:relative;display:inline-flex;align-items:center;margin-right:8px;">
+                    <span id="live-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:6px;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse-dot 2s infinite;"></span>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:0.05em;">LIVE</span>
+                    <span id="live-count" style="display:none;background:#3B82F6;color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:6px;">0</span>
                 </div>
-                <a href="{{ url_for('auth.logout') }}" class="nav-item" style="margin-left: -10px;">Sign Out</a>
+                <a href="#" class="btn-nav-login" style="border-radius:99px; border: 1px solid rgba(255,255,255,0.2); padding: 8px 18px;">Log Out</a>
+                <a href="{{ url_for('jobs.jobs_page') }}" class="btn-nav-signup" style="background: #3B82F6; box-shadow: 0 4px 14px rgba(59,130,246,0.3);">Find Jobs</a>
             </div>
         </header>
 
         {% block hero %}{% endblock %}
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content reveal">
             {% block content %}{% endblock %}
         </main>
 
@@ -154,7 +154,7 @@
         function scoreRing(score, id) {
             const r = 40, circ = 2 * Math.PI * r;
             const offset = circ - (score / 100) * circ;
-            const col = score >= 70 ? '#34d399' : score >= 45 ? '#7c3aed' : '#f59e0b';
+            const col = score >= 70 ? '#34d399' : score >= 45 ? '#818CF8' : '#f59e0b';
             return `
   <div class="score-ring" id="ring-${id}">
     <svg width="96" height="96" viewBox="0 0 96 96">
@@ -174,6 +174,72 @@
     </script>
 
     {% block scripts %}{% endblock %}
+
+    <!-- ─── WebSocket Live Feed ──────────────────────────────────────── -->
+    <style>
+        @keyframes pulse-dot {
+            0%   { box-shadow: 0 0 0 0   rgba(34,197,94,.6); }
+            70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0   rgba(34,197,94,0); }
+        }
+        #live-count { transition: transform .2s; }
+        #live-count.bump { transform: scale(1.3); }
+    </style>
+    <script>
+    (function() {
+        let newJobsTotal = 0;
+
+        // Only connect if socket.io loaded
+        if (typeof io === 'undefined') return;
+
+        const socket = io('/', { transports: ['polling', 'websocket'] });
+
+        socket.on('connect', function() {
+            console.log('[LiveFeed] Connected to server.');
+            socket.emit('subscribe_jobs');
+        });
+
+        socket.on('connected', function(data) {
+            console.log('[LiveFeed] Server acknowledged:', data);
+        });
+
+        socket.on('new_jobs', function(data) {
+            const count = data.count || 0;
+            const jobs  = data.jobs  || [];
+            if (count === 0) return;
+
+            newJobsTotal += count;
+
+            // Update badge
+            const badge = document.getElementById('live-count');
+            if (badge) {
+                badge.textContent = newJobsTotal;
+                badge.style.display = 'inline';
+                badge.classList.add('bump');
+                setTimeout(() => badge.classList.remove('bump'), 200);
+            }
+
+            // Toast notification
+            const company = jobs[0] ? jobs[0].company : '';
+            const extra   = count > 1 ? ` (+${count - 1} more)` : '';
+            if (typeof toast === 'function') {
+                toast(`New job: <b>${jobs[0] ? jobs[0].title : 'position'}</b> @ ${company}${extra}`, 'info');
+            }
+
+            // Pulse the dot blue momentarily
+            const dot = document.getElementById('live-dot');
+            if (dot) {
+                dot.style.background = '#3B82F6';
+                setTimeout(() => { dot.style.background = '#22c55e'; }, 1500);
+            }
+        });
+
+        socket.on('disconnect', function() {
+            const dot = document.getElementById('live-dot');
+            if (dot) dot.style.background = '#6b7280';
+        });
+    })();
+    </script>
 </body>
 
 </html>

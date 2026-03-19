@@ -7,18 +7,87 @@
         <div class="page-title">Skill Match Engine</div>
         <div class="page-subtitle">See how your resume aligns with every job — automatically</div>
     </div>
-    <button class="btn btn-primary" id="btn-auto-match">
-        Auto-Match All Jobs
-    </button>
+    <div style="display:flex; gap:12px;">
+        <a href="/resume" class="btn btn-secondary">Add Resume</a>
+        <button class="btn btn-primary" id="btn-auto-match">
+            Auto-Match All Jobs
+        </button>
+    </div>
 </div>
 
-<!-- Top controls -->
-<div class="filters-row" style="margin-bottom:24px">
+<!-- ═══ Dashboard Stats ═══ -->
+<div class="match-stats-row" id="match-stats">
+    <div class="match-stat-card">
+        <div class="match-stat-value" id="stat-total">0</div>
+        <div class="match-stat-label">Total Matches</div>
+        <div class="match-stat-bar"><div class="match-stat-bar-fill fill-good" style="width:0%"></div></div>
+    </div>
+    <div class="match-stat-card">
+        <div class="match-stat-value" id="stat-strong" style="color:#34d399">0</div>
+        <div class="match-stat-label">Strong Matches</div>
+        <div class="match-stat-bar"><div class="match-stat-bar-fill fill-strong" style="width:0%"></div></div>
+    </div>
+    <div class="match-stat-card">
+        <div class="match-stat-value" id="stat-avg">0%</div>
+        <div class="match-stat-label">Average Score</div>
+        <div class="match-stat-bar"><div class="match-stat-bar-fill fill-good" style="width:0%"></div></div>
+    </div>
+    <div class="match-stat-card">
+        <div class="match-stat-value" id="stat-skills" style="color:#f59e0b">0</div>
+        <div class="match-stat-label">Skills Detected</div>
+        <div class="match-stat-bar"><div class="match-stat-bar-fill fill-low" style="width:0%"></div></div>
+    </div>
+</div>
+
+<!-- ═══ Skill Intelligence Panel ═══ -->
+<div class="skill-intel-panel" id="skill-intel">
+    <!-- Left: Skill Scoring -->
+    <div class="card skill-score-card">
+        <div class="skill-section-header">
+            <div>
+                <div class="skill-section-title">Skill Scoring</div>
+                <div class="skill-section-sub">Your skills ranked by market demand</div>
+            </div>
+            <div class="readiness-badge" id="readiness-badge">
+                <div class="readiness-val" id="readiness-value">0</div>
+                <div class="readiness-label">READINESS</div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div id="skill-bars-list" class="skill-bars-list">
+            <div class="empty-state" style="padding:24px 0">
+                <div class="empty-title">No skill data yet</div>
+                <div class="empty-sub">Upload a resume and run Auto-Match to see your skill scores.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Skill Recommendations -->
+    <div class="card skill-rec-card">
+        <div class="skill-section-header">
+            <div>
+                <div class="skill-section-title">Skill Recommendations</div>
+                <div class="skill-section-sub">Top skills employers are looking for</div>
+            </div>
+            <span class="badge badge-warn">AI Suggested</span>
+        </div>
+        <div class="divider"></div>
+        <div id="skill-recs-list" class="skill-recs-list">
+            <div class="empty-state" style="padding:24px 0">
+                <div class="empty-title">No recommendations yet</div>
+                <div class="empty-sub">Run Auto-Match to discover in-demand skills you're missing.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Filters ═══ -->
+<div class="match-filters-bar">
     <div class="filter-item" style="flex:2">
         <label>MINIMUM MATCH SCORE</label>
-        <input type="range" id="min-score" min="0" max="90" value="0" style="width:100%;accent-color:var(--accent-1)"
+        <input type="range" id="min-score" min="0" max="90" value="0" class="match-range-input"
             oninput="document.getElementById('score-val').textContent=this.value+'%'" />
-        <div style="font-size:12px;color:var(--text-3);margin-top:4px">Showing ≥ <span id="score-val">0%</span></div>
+        <div class="match-range-display">Showing ≥ <span id="score-val">0%</span></div>
     </div>
     <div class="filter-item">
         <label>RECOMMENDATION</label>
@@ -35,8 +104,8 @@
     </div>
 </div>
 
-<!-- Match Results -->
-<div id="matches-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+<!-- ═══ Match Results ═══ -->
+<div id="matches-grid" class="match-grid-pro">
     <div class="empty-state" style="grid-column:1/-1">
         <div class="empty-title">No matches yet</div>
         <div class="empty-sub">Upload a resume, then click <strong>Auto-Match All Jobs</strong> to see your
@@ -44,9 +113,9 @@
     </div>
 </div>
 
-<!-- Match Detail Modal -->
+<!-- ═══ Match Detail Modal ═══ -->
 <div class="modal-backdrop" id="match-modal">
-    <div class="modal" style="max-width:600px">
+    <div class="modal" style="max-width:640px">
         <div class="modal-header">
             <div class="modal-title" id="mm-title">Match Details</div>
             <button class="modal-close"
@@ -55,12 +124,39 @@
         <div id="mm-body"></div>
     </div>
 </div>
+
+<!-- Auto-Apply Suggestion Modal -->
+<div class="modal-backdrop" id="auto-apply-modal" style="z-index: 3000;">
+    <div class="modal" style="max-width:600px">
+        <div class="modal-header">
+            <div class="modal-title">Auto-Apply Suggestions</div>
+            <button class="modal-close" onclick="closeAutoApplyModal()">✕</button>
+        </div>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:4px">
+            These jobs match your resume at <strong style="color:#34d399">35% or above</strong>. 
+            Select the ones you'd like to auto-apply to.
+        </p>
+        <div class="auto-apply-list" id="auto-apply-list">
+            <!-- Rendered by JS -->
+        </div>
+        <div class="auto-apply-footer">
+            <div class="auto-apply-count" id="auto-apply-count">0 selected</div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-secondary" onclick="closeAutoApplyModal()">Dismiss</button>
+                <button class="btn btn-primary auto-apply-pulse" id="btn-apply-selected" onclick="applySelected()">
+                    Apply Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let matchData = [];
 
+    // ─── Load Matches ────────────────────────────────────────────
     async function loadMatches() {
         const minScore = document.getElementById('min-score').value;
         const rec = document.getElementById('f-rec').value;
@@ -69,74 +165,158 @@
             if (rec) data = data.filter(m => m.recommendation === rec);
             matchData = data;
             renderMatches(data);
+            updateStats(data);
         } catch (e) { toast('Failed to load matches: ' + e.message, 'error'); }
     }
 
+    // ─── Update Stats ────────────────────────────────────────────
+    function updateStats(matches) {
+        const total = matches.length;
+        const strong = matches.filter(m => m.recommendation === 'Strong Match').length;
+        const avg = total ? Math.round(matches.reduce((s, m) => s + m.match_score, 0) / total) : 0;
+
+        animateCounter('stat-total', total);
+        animateCounter('stat-strong', strong);
+        document.getElementById('stat-avg').textContent = avg + '%';
+
+        // Update bar widths
+        const statCards = document.querySelectorAll('.match-stat-card');
+        if (statCards[0]) statCards[0].querySelector('.match-stat-bar-fill').style.width = Math.min(total * 2, 100) + '%';
+        if (statCards[1]) statCards[1].querySelector('.match-stat-bar-fill').style.width = (total ? (strong / total * 100) : 0) + '%';
+        if (statCards[2]) statCards[2].querySelector('.match-stat-bar-fill').style.width = avg + '%';
+    }
+
+    function animateCounter(id, target) {
+        const el = document.getElementById(id);
+        const start = parseInt(el.textContent) || 0;
+        const diff = target - start;
+        const duration = 600;
+        const startTime = performance.now();
+        function step(now) {
+            const progress = Math.min((now - startTime) / duration, 1);
+            const val = Math.round(start + diff * easeOut(progress));
+            el.textContent = val;
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    // ─── Render Matches ─────────────────────────────────────────
     function renderMatches(matches) {
         const grid = document.getElementById('matches-grid');
         if (!matches.length) {
             grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-      <div class="empty-title">No matches found</div>
-      <div class="empty-sub">Try lowering the minimum score or run Auto-Match to compute scores.</div>
-    </div>`;
+                <div class="empty-title">No matches found</div>
+                <div class="empty-sub">Try lowering the minimum score or run Auto-Match to compute scores.</div>
+            </div>`;
             return;
         }
 
         grid.innerHTML = matches.map((m, i) => {
             const j = m.job;
             const sc = m.match_score;
+            const bd = m.breakdown || {};
             const cls = sc >= 70 ? 'fill-strong' : sc >= 45 ? 'fill-good' : 'fill-low';
             return `
-    <div class="card" style="cursor:pointer;position:relative" onclick="showMatchDetail(${i})">
-      <div style="display:flex;gap:16px;align-items:center">
-        ${scoreRing(sc, i)}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:15px;font-weight:700;margin-bottom:4px">${j.title}</div>
-          <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">${j.company}</div>
-          ${recBadge(m.recommendation)}
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-2)">
-        <span>${(m.matched_skills || []).length} matched</span>
-        <span>${(m.missing_skills || []).length} missing</span>
-        <span>${j.location || 'N/A'}</span>
-      </div>
-      <div class="match-bar-wrap" style="margin-top:10px">
-        <div class="match-bar"><div class="match-bar-fill ${cls}" style="width:${sc}%"></div></div>
-      </div>
-    </div>`;
+            <div class="match-card-pro" onclick="showMatchDetail(${i})">
+                <div class="mcp-top">
+                    <div class="mcp-ring-wrap">${scoreRing(sc, i)}</div>
+                    <div class="mcp-info">
+                        <div class="mcp-title">${j.title}</div>
+                        <div class="mcp-company">${j.company}</div>
+                        ${recBadge(m.recommendation)}
+                    </div>
+                </div>
+
+                <div class="mcp-breakdown">
+                    <div class="bd-row">
+                        <span class="bd-label">Skills</span>
+                        <div class="bd-bar"><div class="bd-bar-fill fill-strong" style="width:${bd.skills || 0}%"></div></div>
+                        <span class="bd-val">${Math.round(bd.skills || 0)}</span>
+                    </div>
+                    <div class="bd-row">
+                        <span class="bd-label">Title</span>
+                        <div class="bd-bar"><div class="bd-bar-fill fill-good" style="width:${bd.title || 0}%"></div></div>
+                        <span class="bd-val">${Math.round(bd.title || 0)}</span>
+                    </div>
+                    <div class="bd-row">
+                        <span class="bd-label">Location</span>
+                        <div class="bd-bar"><div class="bd-bar-fill fill-low" style="width:${bd.location || 0}%"></div></div>
+                        <span class="bd-val">${Math.round(bd.location || 0)}</span>
+                    </div>
+                    <div class="bd-row">
+                        <span class="bd-label">Salary</span>
+                        <div class="bd-bar"><div class="bd-bar-fill" style="width:${bd.salary || 0}%;background:linear-gradient(90deg,#a78bfa,#7c3aed)"></div></div>
+                        <span class="bd-val">${Math.round(bd.salary || 0)}</span>
+                    </div>
+                </div>
+
+                <div class="mcp-footer">
+                    <span>${(m.matched_skills || []).length} matched</span>
+                    <span>${(m.missing_skills || []).length} missing</span>
+                    <span>${j.location || 'N/A'}</span>
+                </div>
+            </div>`;
         }).join('');
     }
 
+    // ─── Match Detail Modal ──────────────────────────────────────
     function showMatchDetail(idx) {
         const m = matchData[idx];
         if (!m) return;
         const j = m.job;
+        const bd = m.breakdown || {};
         const modal = document.getElementById('match-modal');
         document.getElementById('mm-title').textContent = j.title + ' @ ' + j.company;
 
         const body = document.getElementById('mm-body');
         body.innerHTML = `
-    <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
-      ${scoreRing(m.match_score, 'detail')}
-      <div>
-        ${recBadge(m.recommendation)}
-        <p style="font-size:12px;color:var(--text-2);margin-top:8px">${j.location || 'N/A'}</p>
-      </div>
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:8px">MATCHED SKILLS</div>
-      <div>${(m.matched_skills || []).length ? m.matched_skills.map(s => `<span class="skill-tag" style="border-color:rgba(16,185,129,.4);color:#6ee7b7;background:rgba(16,185,129,.1)">${s}</span>`).join('') : '<span style="color:var(--text-3);font-size:12px">None detected</span>'}</div>
-    </div>
-    <div style="margin-bottom:20px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:8px">MISSING SKILLS (consider learning)</div>
-      <div>${(m.missing_skills || []).length ? m.missing_skills.map(s => `<span class="skill-tag" style="border-color:rgba(239,68,68,.3);color:#fca5a5;background:rgba(239,68,68,.08)">${s}</span>`).join('') : '<span style="color:var(--text-3);font-size:12px">Great — no skill gaps!</span>'}</div>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-primary" onclick="applyFromMatch(${j.id},'${j.title.replace(/'/g, "\\'")}');document.getElementById('match-modal').classList.remove('open')">Track Application</button>
-      ${j.url ? `<a href="${j.url}" target="_blank" class="btn btn-secondary">View Job</a>` : ''}
-    </div>`;
+        <div style="display:flex;gap:20px;align-items:center;margin-bottom:24px">
+            ${scoreRing(m.match_score, 'detail')}
+            <div>
+                ${recBadge(m.recommendation)}
+                <p style="font-size:12px;color:var(--text-2);margin-top:8px">${j.location || 'N/A'}</p>
+            </div>
+        </div>
+
+        <div class="modal-breakdown-section">
+            <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">SCORE BREAKDOWN</div>
+            <div class="bd-row" style="margin-bottom:8px">
+                <span class="bd-label" style="width:70px">Skills</span>
+                <div class="bd-bar" style="flex:1"><div class="bd-bar-fill fill-strong" style="width:${bd.skills || 0}%"></div></div>
+                <span class="bd-val">${Math.round(bd.skills || 0)}%</span>
+            </div>
+            <div class="bd-row" style="margin-bottom:8px">
+                <span class="bd-label" style="width:70px">Title</span>
+                <div class="bd-bar" style="flex:1"><div class="bd-bar-fill fill-good" style="width:${bd.title || 0}%"></div></div>
+                <span class="bd-val">${Math.round(bd.title || 0)}%</span>
+            </div>
+            <div class="bd-row" style="margin-bottom:8px">
+                <span class="bd-label" style="width:70px">Location</span>
+                <div class="bd-bar" style="flex:1"><div class="bd-bar-fill fill-low" style="width:${bd.location || 0}%"></div></div>
+                <span class="bd-val">${Math.round(bd.location || 0)}%</span>
+            </div>
+            <div class="bd-row" style="margin-bottom:8px">
+                <span class="bd-label" style="width:70px">Salary</span>
+                <div class="bd-bar" style="flex:1"><div class="bd-bar-fill" style="width:${bd.salary || 0}%;background:linear-gradient(90deg,#a78bfa,#7c3aed)"></div></div>
+                <span class="bd-val">${Math.round(bd.salary || 0)}%</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;margin-top:20px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">MATCHED SKILLS</div>
+            <div>${(m.matched_skills || []).length ? m.matched_skills.map(s => `<span class="skill-tag skill-tag-match">${s}</span>`).join('') : '<span style="color:var(--text-3);font-size:12px">None detected</span>'}</div>
+        </div>
+        <div style="margin-bottom:24px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">MISSING SKILLS</div>
+            <div>${(m.missing_skills || []).length ? m.missing_skills.map(s => `<span class="skill-tag skill-tag-miss">${s}</span>`).join('') : '<span style="color:var(--text-3);font-size:12px">Great — no skill gaps!</span>'}</div>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="applyFromMatch(${j.id},'${j.title.replace(/'/g, "\\'")}');document.getElementById('match-modal').classList.remove('open')">Track Application</button>
+            ${j.url ? `<a href="${j.url}" target="_blank" class="btn btn-secondary">View Job</a>` : ''}
+        </div>`;
 
         modal.classList.add('open');
     }
@@ -148,16 +328,176 @@
         } catch (e) { toast(e.message, 'error'); }
     }
 
+    // ─── Skill Scoring ──────────────────────────────────────────
+    async function loadSkillScores() {
+        try {
+            const data = await api.get('/api/skill-score');
+            const skills = data.skills || [];
+            const readiness = data.readiness || 0;
+
+            document.getElementById('stat-skills').textContent = skills.length;
+            const statCards = document.querySelectorAll('.match-stat-card');
+            if (statCards[3]) statCards[3].querySelector('.match-stat-bar-fill').style.width = Math.min(skills.length * 5, 100) + '%';
+
+            // Readiness badge
+            const rVal = document.getElementById('readiness-value');
+            rVal.textContent = readiness;
+            const rBadge = document.getElementById('readiness-badge');
+            rBadge.style.borderColor = readiness >= 70 ? 'rgba(52,211,153,0.4)' : readiness >= 40 ? 'rgba(129,140,248,0.4)' : 'rgba(245,158,11,0.4)';
+            rVal.style.color = readiness >= 70 ? '#34d399' : readiness >= 40 ? '#818CF8' : '#f59e0b';
+
+            // Skill bars
+            const container = document.getElementById('skill-bars-list');
+            if (!skills.length) {
+                container.innerHTML = `<div class="empty-state" style="padding:24px 0">
+                    <div class="empty-title">No skill data yet</div>
+                    <div class="empty-sub">Upload a resume and run Auto-Match to see your skill scores.</div>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = skills.slice(0, 12).map((s, i) => {
+                const col = s.score >= 70 ? '#34d399' : s.score >= 40 ? '#818CF8' : '#f59e0b';
+                return `
+                <div class="skill-bar-row" style="animation-delay:${i * 50}ms">
+                    <div class="sb-name">${s.name}</div>
+                    <div class="sb-track">
+                        <div class="sb-fill" style="width:${s.score}%;background:${col}"></div>
+                    </div>
+                    <div class="sb-score" style="color:${col}">${s.score}</div>
+                </div>`;
+            }).join('');
+        } catch (e) { /* silent */ }
+    }
+
+    // ─── Skill Recommendations ──────────────────────────────────
+    async function loadSkillRecs() {
+        try {
+            const recs = await api.get('/api/skill-recommendations');
+            const container = document.getElementById('skill-recs-list');
+            if (!recs.length) {
+                container.innerHTML = `<div class="empty-state" style="padding:24px 0">
+                    <div class="empty-title">No recommendations yet</div>
+                    <div class="empty-sub">Run Auto-Match to discover in-demand skills you're missing.</div>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = recs.map((r, i) => `
+                <div class="skill-rec-item" style="animation-delay:${i * 60}ms">
+                    <div class="sri-rank">${i + 1}</div>
+                    <div class="sri-info">
+                        <div class="sri-name">${r.name}</div>
+                        <div class="sri-demand">${r.demand} job${r.demand !== 1 ? 's' : ''} require this</div>
+                    </div>
+                    <div class="sri-pct">${r.pct}%</div>
+                    <div class="sri-bar-wrap">
+                        <div class="sri-bar" style="width:${r.pct}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { /* silent */ }
+    }
+
+    // ─── Auto-Match Button ──────────────────────────────────────
     document.getElementById('btn-auto-match').addEventListener('click', async () => {
         showLoading('Running skill matching engine…');
         try {
             const r = await api.post('/api/match/batch', { limit: 50 });
             toast(`Computed ${r.matches_computed} match scores!`, 'success');
             loadMatches();
+            loadSkillScores();
+            loadSkillRecs();
+            setTimeout(checkSuggestions, 600); // Check suggestions after matching
         } catch (e) { toast(e.message, 'error'); }
         finally { hideLoading(); }
     });
 
+    // ─── Auto-Apply Suggestions ─────────────────────────────────
+    let suggestions = [];
+
+    async function checkSuggestions() {
+        try {
+            suggestions = await api.get('/api/applications/suggested?min_score=35');
+            if (suggestions.length > 0) {
+                renderSuggestions();
+                document.getElementById('auto-apply-modal').classList.add('open');
+            }
+        } catch (e) { /* silent - don't interrupt if the endpoint fails */ }
+    }
+
+    function renderSuggestions() {
+        const list = document.getElementById('auto-apply-list');
+        list.innerHTML = suggestions.map((s, i) => {
+            const sc = s.match_score;
+            const cls = sc >= 70 ? 'score-high' : sc >= 45 ? 'score-mid' : 'score-low';
+            return `
+            <div class="suggestion-card">
+                <div class="sc-score ${cls}">${Math.round(sc)}%</div>
+                <div class="sc-info">
+                    <div class="sc-title">${s.job.title}</div>
+                    <div class="sc-company">${s.job.company} · ${s.job.location || 'Remote'}</div>
+                    <div class="sc-rec">${recBadge(s.recommendation)}</div>
+                </div>
+                <input type="checkbox" class="sc-check" data-idx="${i}" checked onchange="updateSelectedCount()" />
+            </div>`;
+        }).join('');
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.sc-check:checked').length;
+        document.getElementById('auto-apply-count').textContent = `${checked} selected`;
+        document.getElementById('btn-apply-selected').disabled = checked === 0;
+    }
+
+    function closeAutoApplyModal() {
+        document.getElementById('auto-apply-modal').classList.remove('open');
+    }
+
+    async function applySelected() {
+        const checkboxes = document.querySelectorAll('.sc-check:checked');
+        if (!checkboxes.length) return;
+
+        const btn = document.getElementById('btn-apply-selected');
+        btn.disabled = true;
+        btn.textContent = 'Applying…';
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const cb of checkboxes) {
+            const idx = parseInt(cb.dataset.idx);
+            const s = suggestions[idx];
+            if (!s) continue;
+
+            try {
+                await api.post('/api/applications', {
+                    job_id: s.job_id,
+                    match_score: s.match_score
+                });
+                successCount++;
+            } catch (e) {
+                failCount++;
+            }
+        }
+
+        closeAutoApplyModal();
+
+        if (successCount > 0) {
+            toast(`Auto-applied to ${successCount} job${successCount > 1 ? 's' : ''}!`, 'success');
+        }
+        if (failCount > 0) {
+            toast(`${failCount} application${failCount > 1 ? 's' : ''} failed (may already exist)`, 'error');
+        }
+
+        btn.textContent = 'Apply Selected';
+        btn.disabled = false;
+    }
+
+    // ─── Init ────────────────────────────────────────────────────
     loadMatches();
+    loadSkillScores();
+    loadSkillRecs();
 </script>
 {% endblock %}

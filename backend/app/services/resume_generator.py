@@ -40,6 +40,12 @@ class ResumeGenerator:
             return self._gemini_cover_letter(user_profile, job)
         return self._template_cover_letter(user_profile, job)
 
+    def evaluate_resume_skills(self, user_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Evaluate resume skills and suggest missing ones, purely based on the resume."""
+        if self.model:
+            return self._gemini_evaluate_skills(user_profile)
+        return self._template_evaluate_skills(user_profile)
+
     # ─────────────────────────────────────────────────
     # Gemini implementations
     # ─────────────────────────────────────────────────
@@ -98,6 +104,44 @@ Output ONLY the letter text, no preamble.
         except Exception as e:
             print(f"[ResumeGenerator] Gemini cover letter error: {e}")
             return self._template_cover_letter(profile, job)
+
+    def _gemini_evaluate_skills(self, profile: Dict) -> Dict[str, Any]:
+        skills_str = ', '.join(profile.get('skills', []))
+        prompt = f"""You are a senior tech recruiter and career strategist.
+Analyze the following candidate's skills based on current industry trends.
+
+Candidate Skills: {skills_str if skills_str else 'None provided'}
+Candidate Summary: {profile.get('summary', '')}
+Candidate Job Title / Target: {profile.get('tagline', '') or 'Tech Professional'}
+
+Task 1: Rate existing skills. Give each provided skill a "strength/demand" score (0-100) based on how sought-after it is in the current job market for their role.
+Task 2: Recommend missing skills. Suggest EXACTLY 10 top skills they should learn to advance their career, and estimate the percentage of jobs asking for them (0-100). Do NOT suggest skills they already have.
+
+Return ONLY a valid JSON object matching this schema exactly, and nothing else (no markdown wrapping, no explanation, just raw JSON):
+{{
+  "evaluated_skills": [
+    {{"name": "SkillName1", "score": 85}},
+    {{"name": "SkillName2", "score": 70}}
+  ],
+  "recommended_skills": [
+    {{"name": "MissingSkill1", "demand": 45, "pct": 45}},
+    {{"name": "MissingSkill2", "demand": 30, "pct": 30}}
+  ]
+}}
+"""
+        try:
+            response = self.model.generate_content(prompt)
+            text = response.text.strip()
+            if text.startswith('```json'): text = text[7:]
+            if text.startswith('```'): text = text[3:]
+            if text.endswith('```'): text = text[:-3]
+            
+            import json
+            data = json.loads(text.strip())
+            return data
+        except Exception as e:
+            print(f"[ResumeGenerator] Gemini skill eval error: {e}")
+            return self._template_evaluate_skills(profile)
 
     # ─────────────────────────────────────────────────
     # Template fallbacks (no API key needed)
@@ -177,6 +221,27 @@ Thank you for considering my application.
 Sincerely,
 {name}
 """
+
+    def _template_evaluate_skills(self, profile: Dict) -> Dict[str, Any]:
+        skills = profile.get('skills', [])
+        evaluated = []
+        import random
+        for s in skills:
+            # Fake generic high score for demo fallback
+            evaluated.append({'name': s, 'score': random.randint(50, 95)})
+        
+        evaluated.sort(key=lambda x: x['score'], reverse=True)
+        
+        recs = [
+            {'name': 'Python', 'demand': 65, 'pct': 65},
+            {'name': 'SQL', 'demand': 55, 'pct': 55},
+            {'name': 'AWS', 'demand': 45, 'pct': 45},
+            {'name': 'Docker', 'demand': 40, 'pct': 40},
+            {'name': 'React', 'demand': 35, 'pct': 35},
+        ]
+        
+        recs = [r for r in recs if r['name'].lower() not in [s.lower() for s in skills]]
+        return {'evaluated_skills': evaluated, 'recommended_skills': recs}
 
     # ─────────────────────────────────────────────────
     # Helpers

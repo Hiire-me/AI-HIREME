@@ -26,15 +26,16 @@ class AutoApplyBot:
         # Generate cover letter
         cover_letter = app_obj.cover_letter
         if not cover_letter:
+            user = profile.user
             cover_letter = self.resume_generator.generate_cover_letter({
-                'full_name': user_profile.user.full_name,
-                'email': user_profile.user.email,
-                'phone': user_profile.user.phone,
-                'skills': user_profile.skills,
+                'full_name': user.full_name if user else 'Candidate',
+                'email':     user.email    if user else '',
+                'phone':     user.phone    if user else '',
+                'skills':    profile.skills or [],
             }, {
-                'title': job.title,
-                'company': job.company,
-                'description': job.description
+                'title':       job.title,
+                'company':     job.company,
+                'description': job.description or '',
             })
             app_obj.cover_letter = cover_letter
 
@@ -54,13 +55,11 @@ class AutoApplyBot:
                     print(f"[AutoApplyBot] Unsupported ATS URL: {url}")
 
                 if success:
-                    # Actually submit in production, or click the button. 
-                    # Assuming we just do a dry run or click the actual submit button for demo.
                     try:
                         submit_button = page.locator("button[type='submit'], input[type='submit']").first
                         if submit_button.is_visible():
-                            # submit_button.click()
-                            print(f"[AutoApplyBot] Successfully filled {url}. (Submit clicked)")
+                            submit_button.click()
+                            print(f"[AutoApplyBot] Submitted application to {url}.")
                             success = True
                     except Exception as e:
                         print(f"[AutoApplyBot] Could not click submit: {e}")

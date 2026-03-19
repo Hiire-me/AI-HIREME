@@ -1,20 +1,23 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_login import LoginManager
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import credentials
 
 load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
-login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-login_manager.login_message_category = 'info'
+
+# Flask-SocketIO instance — initialized lazily in create_app()
+try:
+    from flask_socketio import SocketIO
+    socketio = SocketIO()
+    HAS_SOCKETIO = True
+except ImportError:
+    socketio = None
+    HAS_SOCKETIO = False
 
 def create_app():
     from app.config import Config
@@ -34,37 +37,82 @@ def create_app():
     # Extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    CORS(app)
-    login_manager.init_app(app)
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
+    # WebSocket via flask-socketio
+    if HAS_SOCKETIO and socketio is not None:
+        socketio.init_app(app, cors_allowed_origins='*',
+                          async_mode='threading',
+                          logger=False, engineio_logger=False)
+        print('[init] SocketIO initialized (threading mode).')
+    else:
+        print('[init] flask-socketio not installed — real-time feed disabled.')
+
+    # Wire Celery config so CELERY_TASK_ALWAYS_EAGER propagates
+    try:
+        from app.celery_init import celery_app, make_celery
+        celery_app.config_from_object(app.config, namespace='CELERY')
+        # Re-apply task_always_eager from Flask config
+        celery_app.conf.update(
+            task_always_eager=app.config.get('CELERY_TASK_ALWAYS_EAGER', True),
+            task_eager_propagates=app.config.get('CELERY_TASK_EAGER_PROPAGATES', True),
+        )
+    except Exception as e:
+        print(f"[init] Celery config warning: {e}")
 
     try:
+        import firebase_admin
+        from firebase_admin import credentials as fb_creds
         if not firebase_admin._apps:
             cred_path = os.path.join(base, '..', '..', 'firebase-service-account.json')
             if os.path.exists(cred_path):
-                cred = credentials.Certificate(cred_path)
+                print(f"Initializing Firebase with service account: {cred_path}")
+                cred = fb_creds.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
             else:
-                print("WARNING: firebase-service-account.json not found.")
-                firebase_admin.initialize_app()
+                print("[init] No firebase-service-account.json found — Firebase disabled.")
+    except ImportError:
+        pass
     except Exception as e:
         print(f"Firebase Admin Init Error: {e}")
 
     # Blueprints
-    from app.routes import auth, resume, jobs, matching, applications, profile
-    app.register_blueprint(auth.bp)
+    from app.routes import resume, jobs, matching, applications, profile
+    from app.routes import ws_events
     app.register_blueprint(resume.bp)
     app.register_blueprint(jobs.bp)
     app.register_blueprint(matching.bp)
     app.register_blueprint(applications.bp)
     app.register_blueprint(profile.bp)
 
+    @app.route('/')
+    def index():
+        from flask import redirect, url_for
+        return redirect(url_for('jobs.jobs_page'))
+
     # Create tables on first run
     with app.app_context():
         db.create_all()
+        _ensure_guest_user()
         _seed_sample_jobs()
 
     return app
 
+
+def _ensure_guest_user():
+    """Ensure a default guest user exists for the public app."""
+    from app.models import User, Profile
+    guest = User.query.get(1)
+    if not guest:
+        guest = User(id=1, email='guest@example.com', full_name='Guest User')
+        guest.set_password('password-not-used')
+        db.session.add(guest)
+        db.session.flush()
+        
+        profile = Profile(user_id=guest.id, summary='Public Guest Profile')
+        db.session.add(profile)
+        db.session.commit()
+        print("[init] Created default guest user.")
 
 def _seed_sample_jobs():
     """Seed a handful of sample jobs so the UI is not empty on first run."""

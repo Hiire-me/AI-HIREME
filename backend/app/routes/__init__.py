@@ -1,1 +1,1 @@
-from app.routes import auth, resume, jobs, matching, applications, profile
+from app.routes import resume, jobs, matching, applications, profile

@@ -3,12 +3,85 @@
 
 {% block hero %}
 <div class="hero-section">
-    <div class="hero-subtitle">AutoJobAgent Isn't Just A Platform – It's Your Career Masterpiece</div>
-    <div class="hero-bg-text">Careers</div>
-    <img src="{{ url_for('static', filename='img/corporate_building.png') }}" alt="Corporate Building"
-        class="hero-image" />
+    <!-- Hero Content Left -->
+    <div class="hero-content reveal">
+        <h1 class="hero-heading" style="font-weight: 600; font-size: 72px; letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px;">
+            Discover the key<br>
+            to land your<br>
+            dream job
+        </h1>
+        <p class="hero-sub" style="font-size: 16px; color: #a1a1aa; line-height: 1.6; max-width: 480px; margin-bottom: 40px; font-weight: 400;">
+            HIIREME's AI engine finds, matches, and applies to the<br>
+            best jobs for you - automatically and intelligently.<br>
+            Your autonomous career growth partner.
+        </p>
+        <div class="hero-actions" style="margin-bottom: 60px;">
+            <a href="#jobs-grid" class="btn btn-primary btn-lg" style="background: #3B82F6; color: #fff; padding: 12px 28px; border-radius: 99px; box-shadow: none;">Find Jobs Now</a>
+            <button onclick="document.getElementById('learn-more-text').style.display = document.getElementById('learn-more-text').style.display === 'none' ? 'block' : 'none';" class="btn btn-secondary btn-lg" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 12px 28px; border-radius: 99px; cursor: pointer; font-family: inherit;">Learn more</button>
+            <div id="learn-more-text" style="display: none; margin-top: 24px; padding: 16px 20px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; border-radius: 0 12px 12px 0; font-size: 15px; color: #e2e8f0; line-height: 1.6; max-width: 480px; text-align: left; animation: revealUp 0.4s ease forwards;">
+                Forget filling out endless forms. Just drop your CV (PDF or photo!) and let our system do the heavy lifting. We’ll read your experience and 'forward' it to the companies that are looking for exactly what you offer.
+            </div>
+        </div>
+        
+        <!-- Dark inner card -->
+        <div class="hero-cta-strip" style="margin-top:0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 24px; max-width: 520px; display: flex; align-items: center; justify-content: space-between;">
+            <div class="hero-cta-text" style="font-size: 14px; color: #a1a1aa; line-height: 1.5;">
+                <strong style="color: #fff; font-weight: 600;">Upload your resume</strong> and let AI match you<br>
+                to the perfect roles in seconds.
+            </div>
+            <a href="{{ url_for('resume.resume_page') }}" class="btn btn-secondary btn-sm" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 99px; padding: 8px 20px;">Build Resume</a>
+        </div>
+    </div>
+
+    <!-- Hero Visual Right -->
+    <div class="hero-visual reveal stagger-2">
+        <!-- Partner Badge Row -->
+        <div class="hero-badge-row" style="margin-bottom: 40px; justify-content: flex-end;">
+            <div style="display: flex; gap: 8px;">
+                <div class="hero-badge" style="background: rgba(255,255,255,0.05); border-radius: 12px; width: 48px; height: 48px;"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg" style="width: 24px; filter: invert(1);"></div>
+                <div class="hero-badge" style="background: rgba(255,255,255,0.05); border-radius: 12px; width: 48px; height: 48px; color: #3B82F6; font-size: 24px;">✦</div>
+                <div class="hero-badge" style="background: rgba(255,255,255,0.05); border-radius: 12px; width: 48px; height: 48px; font-weight: bold; font-family: sans-serif; font-size: 20px;">XI</div>
+                <div class="hero-badge" style="background: rgba(255,255,255,0.05); border-radius: 12px; width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b, #ec4899, #3b82f6); position: relative;"><div style="position: absolute; inset: 2px; background: #111; border-radius: 10px;"></div><span style="position: relative; z-index: 10; font-weight: 800; font-size: 18px; color: transparent; background: linear-gradient(135deg, #f59e0b, #ec4899, #3b82f6); -webkit-background-clip: text;">&nbsp;</span></div>
+                <div class="hero-badge" style="background: rgba(255,255,255,0.05); border-radius: 12px; width: 48px; height: 48px; font-weight: 800; font-size: 18px;">AI</div>
+            </div>
+            <div style="font-size: 13px; font-weight: 600; color: #fff; line-height: 1.3; margin-left: 12px;">
+                Working with<br>the best
+            </div>
+        </div>
+
+        <!-- Dashboard Preview Card -->
+        <div class="hero-dashboard-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 24px;">
+            <div class="dashboard-inner" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <div style="font-size: 10px; font-weight: 600; color: #a1a1aa; margin-bottom: 8px;">Live AI Metrics</div>
+                    <div style="font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 12px;">Job Matching Engine</div>
+                    <div style="font-size: 13px; color: #a1a1aa; line-height: 1.6;">
+                        Our AI analyzes thousands of jobs<br>
+                        in real-time to find your<br>
+                        perfect career fit.
+                    </div>
+                </div>
+                <div style="background: rgba(255,255,255,0.9); border-radius: 16px; padding: 16px; width: 220px; color: #000;">
+                    <div style="font-size: 11px; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 12px;">Daily Match Rate</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 9px; font-weight: 600; color: #666;">Apply Success Rate</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #10b981;">94%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 20px; font-weight: 800; color: #10b981;">89%</div>
+                        </div>
+                    </div>
+                    <div style="background: #f1f5f9; border-radius: 8px; padding: 8px;">
+                        <div style="font-size: 9px; font-weight: 700;">Jobs Processed: 14,204</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
+
 
 {% block content %}
 <div class="page-header" style="margin-top: 20px;">
@@ -345,14 +418,15 @@
     </div>`;
             return;
         }
-        grid.innerHTML = jobs.map(j => {
+        grid.innerHTML = jobs.map((j, idx) => {
             const sal = fmtSalary(j.salary_min, j.salary_max);
             const tags = (j.required_skills || []).slice(0, 4);
             const remBadge = j.remote_type === 'remote' ? '<span class="badge badge-success">Remote</span>'
                 : j.remote_type === 'hybrid' ? '<span class="badge badge-warn">Hybrid</span>'
                     : '<span class="badge badge-gray">Onsite</span>';
+            const staggerClass = idx < 5 ? `stagger-${idx + 1}` : '';
             return `
-    <div class="job-card" onclick="showJob(${j.id})">
+    <div class="job-card reveal ${staggerClass}" onclick="showJob(${j.id})">
       <div class="job-card-header">
         <div class="company-logo">${j.company[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">

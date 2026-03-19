@@ -1,0 +1,1 @@
+web: cd backend && gunicorn run:app -b 0.0.0.0:$PORT

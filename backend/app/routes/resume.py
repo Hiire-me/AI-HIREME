@@ -1,9 +1,8 @@
 import os
 from flask import Blueprint, jsonify, request, render_template, current_app, send_file
-from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
-from app.models import Resume, Profile
+from app.models import User, Resume, Profile
 from app.services.resume_parser import ResumeParser
 from app.services.resume_generator import ResumeGenerator
 import tempfile
@@ -35,9 +34,8 @@ def _allowed(filename):
 # ─────────────────────────────────────────
 
 @bp.route('/resume')
-@login_required
 def resume_page():
-    resumes = Resume.query.filter_by(user_id=current_user.id).order_by(Resume.created_at.desc()).all()
+    resumes = Resume.query.filter_by(user_id=1).order_by(Resume.created_at.desc()).all()
     return render_template('resume.html', resumes=resumes)
 
 
@@ -46,7 +44,6 @@ def resume_page():
 # ─────────────────────────────────────────
 
 @bp.route('/api/resume/upload', methods=['POST'])
-@login_required
 def upload_resume():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -58,7 +55,7 @@ def upload_resume():
     filename  = secure_filename(file.filename)
     upload_dir = current_app.config['UPLOAD_FOLDER']
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, f"{current_user.id}_{filename}")
+    file_path = os.path.join(upload_dir, f"1_{filename}")
     file.save(file_path)
 
     # Parse
@@ -70,7 +67,7 @@ def upload_resume():
 
     # Save to DB
     resume = Resume(
-        user_id          = current_user.id,
+        user_id          = 1,
         filename         = filename,
         file_path        = file_path,
         raw_text         = parsed.get('raw_text', ''),
@@ -80,7 +77,8 @@ def upload_resume():
     db.session.add(resume)
 
     # Sync skills to profile
-    profile = current_user.profile
+    user = User.query.get(1)
+    profile = user.profile
     if profile:
         existing = set(profile.skills or [])
         new      = set(parsed.get('skills', []))
@@ -99,9 +97,8 @@ def upload_resume():
 
 
 @bp.route('/api/resume/list', methods=['GET'])
-@login_required
 def list_resumes():
-    resumes = Resume.query.filter_by(user_id=current_user.id) \
+    resumes = Resume.query.filter_by(user_id=1) \
                           .order_by(Resume.created_at.desc()).all()
     return jsonify([{
         'id':          r.id,
@@ -117,15 +114,15 @@ def list_resumes():
 # ─────────────────────────────────────────
 
 @bp.route('/api/resume/generate', methods=['POST'])
-@login_required
 def generate_resume():
     data = request.get_json() or {}
-    profile = current_user.profile
+    user = User.query.get(1)
+    profile = user.profile
 
     user_profile = {
-        'full_name':  current_user.full_name,
-        'email':      current_user.email,
-        'phone':      current_user.phone or '',
+        'full_name':  user.full_name,
+        'email':      user.email,
+        'phone':      user.phone or '',
         'summary':    profile.summary if profile else '',
         'skills':     profile.skills  if profile else [],
         'experience': profile.experience if profile else [],
@@ -154,14 +151,14 @@ def generate_resume():
 
 
 @bp.route('/api/cover-letter/generate', methods=['POST'])
-@login_required
 def generate_cover_letter():
     data = request.get_json() or {}
-    profile = current_user.profile
+    user = User.query.get(1)
+    profile = user.profile
 
     user_profile = {
-        'full_name':  current_user.full_name,
-        'email':      current_user.email,
+        'full_name':  user.full_name,
+        'email':      user.email,
         'skills':     profile.skills     if profile else [],
         'experience': profile.experience if profile else [],
     }
@@ -184,7 +181,6 @@ def generate_cover_letter():
 
 
 @bp.route('/api/resume/download', methods=['POST'])
-@login_required
 def download_resume():
     data    = request.get_json() or {}
     content = data.get('content', '')
@@ -195,7 +191,8 @@ def download_resume():
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    name = (current_user.full_name or 'Resume').replace(' ', '_')
+    user = User.query.get(1)
+    name = (user.full_name or 'Resume').replace(' ', '_')
     return send_file(path, as_attachment=True,
                      download_name=f"Resume_{name}.md",
                      mimetype='text/markdown')

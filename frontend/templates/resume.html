@@ -2,234 +2,751 @@
 {% block title %}Resume Builder{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <div class="page-title">Resume Builder</div>
-        <div class="page-subtitle">Upload your CV to extract skills, then generate AI-tailored resumes</div>
-    </div>
-</div>
+<div class="resume-page">
 
-<div class="grid-2" style="gap:24px; align-items:start">
-
-    <!-- Left: Upload + Extracted Skills -->
-    <div>
-        <div class="card" style="margin-bottom:20px">
-            <div class="card-header">
-                <div class="card-title">Upload Resume</div>
+    <!-- LEFT: Tabbed Form -->
+    <div class="resume-form-panel">
+        <!-- Upload Zone -->
+        <div class="resume-upload-zone" id="resume-upload-zone" onclick="document.getElementById('ru-file').click()"
+            ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <input type="file" id="ru-file" style="display:none" accept=".pdf,.docx,.txt" onchange="handleFileSelect(event)">
+            <div class="ru-icon">📄</div>
+            <div class="ru-title">Upload your existing resume</div>
+            <div class="ru-sub">Drag & drop a PDF or DOCX file here, or click to browse.</div>
+            <div class="ru-loader" id="ru-loader" style="display:none">
+                <Spinner></Spinner> Parsing resume...
             </div>
-            <div class="drop-zone" id="drop-zone">
-                <input type="file" id="resume-file" accept=".pdf,.doc,.docx,.txt" />
-                <div class="drop-text">Drop your resume here</div>
-                <div class="drop-sub">PDF, DOCX or TXT • Max 16 MB</div>
-            </div>
-            <div id="upload-status" style="margin-top:12px"></div>
-            <button class="btn btn-primary" style="width:100%;margin-top:12px" id="btn-upload" disabled>
-                Upload & Parse
-            </button>
         </div>
 
-        <!-- Uploaded Resumes -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">My Resumes</div>
-                <button class="btn btn-secondary btn-sm" onclick="loadResumes()">↻ Refresh</button>
+        <!-- Tab Navigation -->
+        <div class="resume-tabs">
+            <button class="resume-tab active" data-tab="personal" onclick="switchResumeTab('personal')">PERSONAL</button>
+            <button class="resume-tab" data-tab="experience" onclick="switchResumeTab('experience')">EXPERIENCE</button>
+            <button class="resume-tab" data-tab="education" onclick="switchResumeTab('education')">EDUCATION</button>
+            <button class="resume-tab" data-tab="skills" onclick="switchResumeTab('skills')">SKILLS</button>
+        </div>
+
+        <!-- Tab: Personal -->
+        <div class="resume-tab-content active" id="tab-personal">
+            <div class="rf-group">
+                <label class="rf-label">FULL NAME</label>
+                <input id="re-name" class="rf-input" placeholder="e.g. Andrew O'Sullivan" oninput="updatePreview()" />
             </div>
-            <div id="resumes-list">
-                <div style="text-align:center;padding:20px;color:var(--text-3)">
-                    <div class="spinner"></div>
+            <div class="rf-group">
+                <label class="rf-label">JOB TITLE</label>
+                <input id="re-tagline" class="rf-input" placeholder="e.g. Product Manager" oninput="updatePreview()" />
+            </div>
+            <div class="rf-row">
+                <div class="rf-group" style="flex:1">
+                    <label class="rf-label">EMAIL</label>
+                    <input id="re-email" class="rf-input" type="email" placeholder="e.g. you@email.com" oninput="updatePreview()" />
+                </div>
+                <div class="rf-group" style="flex:1">
+                    <label class="rf-label">PHONE</label>
+                    <input id="re-phone" class="rf-input" placeholder="e.g. +01 1111155" oninput="updatePreview()" />
+                </div>
+            </div>
+            <div class="rf-group">
+                <label class="rf-label">LOCATION</label>
+                <input id="re-location" class="rf-input" placeholder="e.g. Obere Lände 23, 12345 Berlin" oninput="updatePreview()" />
+            </div>
+            <div class="rf-group">
+                <label class="rf-label">LINKEDIN HANDLE</label>
+                <input id="re-linkedin" class="rf-input" placeholder="e.g. andrewosullivan" oninput="updatePreview()" />
+            </div>
+            <div class="rf-group">
+                <label class="rf-label">PROFILE SUMMARY</label>
+                <textarea id="re-summary" class="rf-input rf-textarea" rows="5" placeholder="Experienced Product Manager with a proven track record..." oninput="updatePreview()"></textarea>
+            </div>
+        </div>
+
+        <!-- Tab: Experience -->
+        <div class="resume-tab-content" id="tab-experience">
+            <div class="rf-section-header">
+                <span>Work Experience</span>
+                <button class="rf-add-btn" onclick="addExpEntry()">+ Add Position</button>
+            </div>
+            <div id="re-exp-list"></div>
+        </div>
+
+        <!-- Tab: Education -->
+        <div class="resume-tab-content" id="tab-education">
+            <div class="rf-section-header">
+                <span>Education</span>
+                <button class="rf-add-btn" onclick="addEduEntry()">+ Add Education</button>
+            </div>
+            <div id="re-edu-list"></div>
+        </div>
+
+        <!-- Tab: Skills -->
+        <div class="resume-tab-content" id="tab-skills">
+            <div class="rf-group">
+                <label class="rf-label">SKILLS</label>
+                <div class="rf-tag-wrap" id="re-skills-tags"></div>
+                <div class="rf-row" style="margin-top:8px">
+                    <input id="re-skill-input" class="rf-input" placeholder="Type a skill and press Enter…"
+                        onkeydown="handleSkillKeydown(event)" style="flex:1" />
+                    <button class="rf-add-btn" onclick="addSkillTag()">Add</button>
+                </div>
+            </div>
+            <div class="rf-group" style="margin-top:20px">
+                <label class="rf-label">CERTIFICATIONS</label>
+                <div id="re-cert-list"></div>
+                <div class="rf-row" style="margin-top:8px">
+                    <input id="re-cert-input" class="rf-input" placeholder="e.g. Google Analytics Certified"
+                        onkeydown="handleCertKeydown(event)" style="flex:1" />
+                    <button class="rf-add-btn" onclick="addCertItem()">Add</button>
+                </div>
+            </div>
+            <div class="rf-group" style="margin-top:20px">
+                <label class="rf-label">LANGUAGES</label>
+                <div id="re-lang-list"></div>
+                <div class="rf-row" style="margin-top:8px">
+                    <input id="re-lang-input" class="rf-input" placeholder="e.g. German" style="flex:1" />
+                    <select id="re-lang-level" class="rf-input" style="flex:0.6">
+                        <option value="1">Beginner</option>
+                        <option value="2">Elementary</option>
+                        <option value="3" selected>Intermediate</option>
+                        <option value="4">Advanced</option>
+                        <option value="5">Native</option>
+                    </select>
+                    <button class="rf-add-btn" onclick="addLangItem()">Add</button>
+                </div>
+            </div>
+            <div class="rf-group" style="margin-top:20px">
+                <label class="rf-label">AWARDS</label>
+                <div id="re-award-list"></div>
+                <div class="rf-row" style="margin-top:8px">
+                    <input id="re-award-title" class="rf-input" placeholder="Award title" style="flex:1" />
+                    <input id="re-award-org" class="rf-input" placeholder="Organization" style="flex:1" />
+                    <button class="rf-add-btn" onclick="addAwardItem()">Add</button>
                 </div>
             </div>
         </div>
+
+        <!-- Action Buttons -->
+        <div class="resume-actions">
+            <button class="resume-action-btn" onclick="saveResumeEditor()">SAVE PROFILE</button>
+            <button class="resume-action-btn" onclick="printResume()">DOWNLOAD PDF</button>
+        </div>
     </div>
 
-    <!-- Right: AI Resume Generator -->
-    <div>
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">AI Resume Generator</div>
-                <span class="badge badge-primary">Powered by Gemini</span>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">JOB TITLE</label>
-                <input id="gen-title" class="form-control" placeholder="e.g. Senior Backend Engineer" />
-            </div>
-            <div class="form-group">
-                <label class="form-label">COMPANY</label>
-                <input id="gen-company" class="form-control" placeholder="e.g. OpenAI" />
-            </div>
-            <div class="form-group">
-                <label class="form-label">JOB DESCRIPTION (paste here)</label>
-                <textarea id="gen-desc" class="form-control" rows="5"
-                    placeholder="Paste the job description…"></textarea>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <button class="btn btn-primary" onclick="generateResume()">Generate Resume</button>
-                <button class="btn btn-secondary" onclick="generateCoverLetter()">Cover Letter</button>
-            </div>
-
-            <div id="gen-output" style="margin-top:20px;display:none">
-                <div class="divider"></div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                    <strong style="font-size:13px">Generated Output</strong>
-                    <button class="btn btn-secondary btn-sm" onclick="downloadResume()">Download .md</button>
-                </div>
-                <div id="md-preview"></div>
-            </div>
-        </div>
-
-        <!-- Extracted Skills -->
-        <div class="card" style="margin-top:20px">
-            <div class="card-header">
-                <div class="card-title">Extracted Skills</div>
-                <span class="badge badge-cyan" id="skill-count">0 skills</span>
-            </div>
-            <div id="skills-cloud" style="line-height:2">
-                <div style="color:var(--text-3);font-size:13px">Upload a resume to extract skills automatically.</div>
+    <!-- RIGHT: Live Preview -->
+    <div class="resume-preview-panel">
+        <div id="resume-preview-printable">
+            <div class="rv-page" id="rv-page">
+                <!-- filled dynamically -->
             </div>
         </div>
     </div>
+
 </div>
+
+<!-- Hidden print frame -->
+<div id="print-only-area" style="display:none"></div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    let extractedSkills = [];
-    let generatedContent = '';
+    let reSkills = [];
+    let reCerts = [];
+    let reLangs = [];
+    let reAwards = [];
+    let reExperience = [];
+    let reEducation = [];
 
-    // ─── Upload ──────────────────────────────────────────────────────
-    const fileInput = document.getElementById('resume-file');
-    const dropZone = document.getElementById('drop-zone');
-    const btnUpload = document.getElementById('btn-upload');
-    const statusEl = document.getElementById('upload-status');
-
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) {
-            btnUpload.disabled = false;
-            statusEl.innerHTML = `<span class="badge badge-cyan">${fileInput.files[0].name}</span>`;
+    // ─── Drag and Drop Upload ─────────────────────────────────────
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.remove('drag-over');
+    }
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            uploadResumeFile(e.dataTransfer.files[0]);
         }
-    });
-
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-        e.preventDefault(); dropZone.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) {
-            fileInput.files = e.dataTransfer.files;
-            btnUpload.disabled = false;
-            statusEl.innerHTML = `<span class="badge badge-cyan">${e.dataTransfer.files[0].name}</span>`;
+    }
+    function handleFileSelect(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            uploadResumeFile(e.target.files[0]);
         }
-    });
-
-    document.getElementById('btn-upload').addEventListener('click', async () => {
-        if (!fileInput.files.length) return;
-        const fd = new FormData();
-        fd.append('file', fileInput.files[0]);
-        showLoading('Parsing resume…');
-        try {
-            const r = await fetch('/api/resume/upload', { method: 'POST', body: fd });
-            const data = await r.json();
-            if (!r.ok) throw new Error(data.error || 'Upload failed');
-            extractedSkills = data.skills || [];
-            renderSkills(extractedSkills);
-            statusEl.innerHTML = `<span class="badge badge-success">Parsed! ${data.skill_count} skills found</span>`;
-            toast(`Uploaded: ${data.filename} — ${data.skill_count} skills extracted`, 'success');
-            loadResumes();
-        } catch (e) { toast(e.message, 'error'); }
-        finally { hideLoading(); }
-    });
-
-    function renderSkills(skills) {
-        document.getElementById('skill-count').textContent = skills.length + ' skills';
-        document.getElementById('skills-cloud').innerHTML = skills.length
-            ? skills.map(s => `<span class="skill-tag">${s}</span>`).join('')
-            : '<div style="color:var(--text-3);font-size:13px">No skills extracted yet.</div>';
     }
 
-    // ─── Resume list ─────────────────────────────────────────────────
-    async function loadResumes() {
-        const el = document.getElementById('resumes-list');
+    async function uploadResumeFile(file) {
+        const zone = document.getElementById('resume-upload-zone');
+        const loader = document.getElementById('ru-loader');
+        zone.style.pointerEvents = 'none';
+        loader.style.display = 'block';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
         try {
-            const list = await api.get('/api/resume/list');
-            if (!list.length) {
-                el.innerHTML = `<div style="color:var(--text-3);font-size:13px;text-align:center;padding:16px">No resumes yet. Upload one above!</div>`;
-                return;
+            const res = await fetch('/api/resume/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (!res.ok) throw new Error(data.error || 'Upload failed');
+            
+            toast('Resume parsed successfully!', 'success');
+            
+            // Populate form from parsed data
+            if (data.personal) {
+                if (data.personal.name) document.getElementById('re-name').value = data.personal.name;
+                if (data.personal.email) document.getElementById('re-email').value = data.personal.email;
+                if (data.personal.phone) document.getElementById('re-phone').value = data.personal.phone;
+                if (data.personal.location) document.getElementById('re-location').value = data.personal.location;
+                if (data.personal.linkedin) document.getElementById('re-linkedin').value = data.personal.linkedin;
             }
-            el.innerHTML = list.map(r => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div>
-          <div style="font-size:13px;font-weight:600">${r.filename}</div>
-          <div style="font-size:11px;color:var(--text-3)">${r.skill_count} skills • ${timeAgo(r.created_at)}</div>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadResumeSkills(${JSON.stringify(r.skills)})">Load Skills</button>
-      </div>`).join('');
-            // Auto-load skills from latest
-            if (list[0].skills.length) {
-                extractedSkills = list[0].skills;
-                renderSkills(extractedSkills);
+            if (data.skills && data.skills.length > 0) {
+                reSkills = data.skills;
+                renderSkillTags();
             }
-        } catch (e) { el.innerHTML = '<p style="color:var(--accent-err)">Failed to load</p>'; }
+            
+            // Save immediately to populate profile on backend
+            await saveResumeEditor();
+            updatePreview();
+            
+        } catch (e) {
+            toast(e.message, 'error');
+        } finally {
+            zone.style.pointerEvents = 'auto';
+            loader.style.display = 'none';
+            document.getElementById('ru-file').value = '';
+        }
     }
 
-    function loadResumeSkills(skills) {
-        extractedSkills = skills;
-        renderSkills(skills);
-        toast('Skills loaded from resume', 'info');
+    // ─── Tab switching ────────────────────────────────────────────
+    function switchResumeTab(tab) {
+        document.querySelectorAll('.resume-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.resume-tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.resume-tab[data-tab="${tab}"]`).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
     }
 
-    // ─── Generate ────────────────────────────────────────────────────
-    async function generateResume() {
-        const payload = {
-            job_title: document.getElementById('gen-title').value,
-            company: document.getElementById('gen-company').value,
-            job_description: document.getElementById('gen-desc').value,
+    // ─── Experience ───────────────────────────────────────────────
+    function addExpEntry(data = {}) {
+        const idx = reExperience.length;
+        const entry = {
+            title: data.title || '',
+            company: data.company || '',
+            location: data.location || '',
+            start: data.start || '',
+            end: data.end || '',
+            bullets: data.bullets || ['']
         };
-        showLoading('Generating tailored resume…');
-        try {
-            const r = await api.post('/api/resume/generate', payload);
-            generatedContent = r.content;
-            showOutput(generatedContent);
-            toast('Resume generated!', 'success');
-        } catch (e) { toast(e.message, 'error'); }
-        finally { hideLoading(); }
+        reExperience.push(entry);
+        const container = document.getElementById('re-exp-list');
+        const div = document.createElement('div');
+        div.className = 'rf-entry-block';
+        div.dataset.idx = idx;
+        div.innerHTML = expEntryHTML(idx, entry);
+        container.appendChild(div);
     }
 
-    async function generateCoverLetter() {
-        const payload = {
-            job_title: document.getElementById('gen-title').value,
-            company: document.getElementById('gen-company').value,
-            job_description: document.getElementById('gen-desc').value,
+    function expEntryHTML(idx, e) {
+        const bulletsHTML = e.bullets.map((b, bi) => `
+            <div class="rf-bullet-row" data-bi="${bi}">
+                <span class="rf-bullet-dot">•</span>
+                <input class="rf-input" value="${escHtml(b)}" placeholder="Bullet point…"
+                    onchange="updateExpBullet(${idx},${bi},this.value)" style="flex:1" />
+                <button class="rf-rm-btn" onclick="removeExpBullet(${idx},${bi})" title="Remove">×</button>
+            </div>`).join('');
+        return `
+            <div class="rf-entry-header">
+                <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <input class="rf-input" value="${escHtml(e.title)}" placeholder="Job Title"
+                        onchange="reExperience[${idx}].title=this.value;updatePreview()" />
+                    <input class="rf-input" value="${escHtml(e.company)}" placeholder="Company Name"
+                        onchange="reExperience[${idx}].company=this.value;updatePreview()" />
+                    <input class="rf-input" value="${escHtml(e.location)}" placeholder="Location"
+                        onchange="reExperience[${idx}].location=this.value;updatePreview()" />
+                    <div style="display:flex;gap:6px">
+                        <input class="rf-input" value="${escHtml(e.start)}" placeholder="Start (e.g. 04/2015)"
+                            onchange="reExperience[${idx}].start=this.value;updatePreview()" style="flex:1" />
+                        <input class="rf-input" value="${escHtml(e.end)}" placeholder="End / Present"
+                            onchange="reExperience[${idx}].end=this.value;updatePreview()" style="flex:1" />
+                    </div>
+                </div>
+                <button class="rf-rm-btn" style="align-self:flex-start" onclick="removeExpEntry(${idx})" title="Remove entry">×</button>
+            </div>
+            <div class="rf-bullets-wrap" id="re-exp-bullets-${idx}">${bulletsHTML}</div>
+            <button class="rf-add-btn" style="margin-top:6px;font-size:11px" onclick="addExpBullet(${idx})">+ Bullet</button>
+        `;
+    }
+
+    function removeExpEntry(idx) {
+        reExperience.splice(idx, 1);
+        refreshExpList();
+        updatePreview();
+    }
+
+    function refreshExpList() {
+        const container = document.getElementById('re-exp-list');
+        container.innerHTML = '';
+        const tmp = [...reExperience];
+        reExperience = [];
+        tmp.forEach(e => addExpEntry(e));
+    }
+
+    function addExpBullet(idx) {
+        reExperience[idx].bullets.push('');
+        const bi = reExperience[idx].bullets.length - 1;
+        const wrap = document.getElementById(`re-exp-bullets-${idx}`);
+        const row = document.createElement('div');
+        row.className = 'rf-bullet-row';
+        row.dataset.bi = bi;
+        row.innerHTML = `
+            <span class="rf-bullet-dot">•</span>
+            <input class="rf-input" value="" placeholder="Bullet point…"
+                onchange="updateExpBullet(${idx},${bi},this.value)" style="flex:1" />
+            <button class="rf-rm-btn" onclick="removeExpBullet(${idx},${bi})" title="Remove">×</button>`;
+        wrap.appendChild(row);
+    }
+
+    function updateExpBullet(idx, bi, val) {
+        if (reExperience[idx]) reExperience[idx].bullets[bi] = val;
+        updatePreview();
+    }
+
+    function removeExpBullet(idx, bi) {
+        reExperience[idx].bullets.splice(bi, 1);
+        const wrap = document.getElementById(`re-exp-bullets-${idx}`);
+        const entry = reExperience[idx];
+        wrap.innerHTML = entry.bullets.map((b, i) => `
+            <div class="rf-bullet-row" data-bi="${i}">
+                <span class="rf-bullet-dot">•</span>
+                <input class="rf-input" value="${escHtml(b)}" placeholder="Bullet point…"
+                    onchange="updateExpBullet(${idx},${i},this.value)" style="flex:1" />
+                <button class="rf-rm-btn" onclick="removeExpBullet(${idx},${i})" title="Remove">×</button>
+            </div>`).join('');
+        updatePreview();
+    }
+
+    // ─── Education ────────────────────────────────────────────────
+    function addEduEntry(data = {}) {
+        const idx = reEducation.length;
+        const entry = {
+            degree: data.degree || '',
+            school: data.school || '',
+            location: data.location || '',
+            start: data.start || '',
+            end: data.end || data.year || ''
         };
-        showLoading('Writing cover letter…');
+        reEducation.push(entry);
+        const container = document.getElementById('re-edu-list');
+        const div = document.createElement('div');
+        div.className = 'rf-entry-block';
+        div.dataset.idx = idx;
+        div.innerHTML = eduEntryHTML(idx, entry);
+        container.appendChild(div);
+    }
+
+    function eduEntryHTML(idx, e) {
+        return `
+            <div class="rf-entry-header">
+                <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <input class="rf-input" value="${escHtml(e.degree)}" placeholder="Degree / Qualification"
+                        onchange="reEducation[${idx}].degree=this.value;updatePreview()" />
+                    <input class="rf-input" value="${escHtml(e.school)}" placeholder="School / University"
+                        onchange="reEducation[${idx}].school=this.value;updatePreview()" />
+                    <input class="rf-input" value="${escHtml(e.location)}" placeholder="Location"
+                        onchange="reEducation[${idx}].location=this.value;updatePreview()" />
+                    <div style="display:flex;gap:6px">
+                        <input class="rf-input" value="${escHtml(e.start)}" placeholder="Start (e.g. 08/2013)"
+                            onchange="reEducation[${idx}].start=this.value;updatePreview()" style="flex:1" />
+                        <input class="rf-input" value="${escHtml(e.end)}" placeholder="End (e.g. 07/2015)"
+                            onchange="reEducation[${idx}].end=this.value;updatePreview()" style="flex:1" />
+                    </div>
+                </div>
+                <button class="rf-rm-btn" style="align-self:flex-start" onclick="removeEduEntry(${idx})" title="Remove">×</button>
+            </div>`;
+    }
+
+    function removeEduEntry(idx) {
+        reEducation.splice(idx, 1);
+        refreshEduList();
+        updatePreview();
+    }
+
+    function refreshEduList() {
+        const container = document.getElementById('re-edu-list');
+        container.innerHTML = '';
+        const tmp = [...reEducation];
+        reEducation = [];
+        tmp.forEach(e => addEduEntry(e));
+    }
+
+    // ─── Skills tags ──────────────────────────────────────────────
+    function handleSkillKeydown(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addSkillTag(); }
+    }
+
+    function addSkillTag() {
+        const input = document.getElementById('re-skill-input');
+        const val = input.value.trim();
+        if (!val || reSkills.includes(val)) { input.value = ''; return; }
+        reSkills.push(val);
+        input.value = '';
+        renderSkillTags();
+        updatePreview();
+    }
+
+    function removeSkillTag(idx) {
+        reSkills.splice(idx, 1);
+        renderSkillTags();
+        updatePreview();
+    }
+
+    function renderSkillTags() {
+        const wrap = document.getElementById('re-skills-tags');
+        wrap.innerHTML = reSkills.map((s, i) => `
+            <span class="rf-tag">${escHtml(s)}
+                <button onclick="removeSkillTag(${i})" class="rf-tag-rm">×</button>
+            </span>`).join('');
+    }
+
+    // ─── Certifications ──────────────────────────────────────────
+    function handleCertKeydown(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addCertItem(); }
+    }
+
+    function addCertItem() {
+        const input = document.getElementById('re-cert-input');
+        const val = input.value.trim();
+        if (!val) return;
+        reCerts.push(val);
+        input.value = '';
+        renderCertList();
+        updatePreview();
+    }
+
+    function removeCertItem(idx) {
+        reCerts.splice(idx, 1);
+        renderCertList();
+        updatePreview();
+    }
+
+    function renderCertList() {
+        const container = document.getElementById('re-cert-list');
+        container.innerHTML = reCerts.map((c, i) => `
+            <div class="rf-cert-row">
+                <span class="rf-bullet-dot">•</span>
+                <span style="flex:1;font-size:13px">${escHtml(c)}</span>
+                <button class="rf-rm-btn" onclick="removeCertItem(${i})">×</button>
+            </div>`).join('');
+    }
+
+    // ─── Languages ───────────────────────────────────────────────
+    function addLangItem() {
+        const nameInput = document.getElementById('re-lang-input');
+        const levelSelect = document.getElementById('re-lang-level');
+        const name = nameInput.value.trim();
+        if (!name) return;
+        reLangs.push({ name, level: parseInt(levelSelect.value) });
+        nameInput.value = '';
+        renderLangList();
+        updatePreview();
+    }
+
+    function removeLangItem(idx) {
+        reLangs.splice(idx, 1);
+        renderLangList();
+        updatePreview();
+    }
+
+    function renderLangList() {
+        const container = document.getElementById('re-lang-list');
+        container.innerHTML = reLangs.map((l, i) => `
+            <div class="rf-cert-row">
+                <span style="flex:1;font-size:13px">${escHtml(l.name)} — ${'●'.repeat(l.level)}${'○'.repeat(5 - l.level)}</span>
+                <button class="rf-rm-btn" onclick="removeLangItem(${i})">×</button>
+            </div>`).join('');
+    }
+
+    // ─── Awards ──────────────────────────────────────────────────
+    function addAwardItem() {
+        const titleInput = document.getElementById('re-award-title');
+        const orgInput = document.getElementById('re-award-org');
+        const title = titleInput.value.trim();
+        const org = orgInput.value.trim();
+        if (!title) return;
+        reAwards.push({ title, org });
+        titleInput.value = '';
+        orgInput.value = '';
+        renderAwardList();
+        updatePreview();
+    }
+
+    function removeAwardItem(idx) {
+        reAwards.splice(idx, 1);
+        renderAwardList();
+        updatePreview();
+    }
+
+    function renderAwardList() {
+        const container = document.getElementById('re-award-list');
+        container.innerHTML = reAwards.map((a, i) => `
+            <div class="rf-cert-row">
+                <span style="flex:1;font-size:13px"><strong>${escHtml(a.title)}</strong>${a.org ? ' — <em>' + escHtml(a.org) + '</em>' : ''}</span>
+                <button class="rf-rm-btn" onclick="removeAwardItem(${i})">×</button>
+            </div>`).join('');
+    }
+
+    // ─── Save to profile ─────────────────────────────────────────
+    async function saveResumeEditor() {
+        const data = collectEditorData();
+        const payload = {
+            full_name: data.name,
+            phone: data.phone,
+            summary: data.summary,
+            skills: reSkills,
+            experience: reExperience,
+            education: reEducation,
+            resume_extra: {
+                tagline: data.tagline,
+                location: data.location,
+                email: data.email,
+                linkedin: data.linkedin,
+                certifications: reCerts,
+                languages: reLangs,
+                awards: reAwards
+            }
+        };
         try {
-            const r = await api.post('/api/cover-letter/generate', payload);
-            generatedContent = r.content;
-            showOutput(generatedContent);
-            toast('Cover letter generated!', 'success');
-        } catch (e) { toast(e.message, 'error'); }
-        finally { hideLoading(); }
+            await api.post('/api/profile', payload);
+            toast('Resume data saved to profile!', 'success');
+        } catch (e) {
+            toast('Save failed: ' + e.message, 'error');
+        }
     }
 
-    function showOutput(content) {
-        document.getElementById('gen-output').style.display = 'block';
-        const preview = document.getElementById('md-preview');
-        preview.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : `<pre>${content}</pre>`;
+    // ─── Print / PDF ─────────────────────────────────────────────
+    function printResume() {
+        setTimeout(() => window.print(), 300);
     }
 
-    async function downloadResume() {
-        if (!generatedContent) return;
-        const r = await fetch('/api/resume/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: generatedContent })
-        });
-        const blob = await r.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'tailored_resume.md';
-        a.click();
+    // ─── Live preview render ──────────────────────────────────────
+    function updatePreview() {
+        renderResumePreview();
     }
 
-    loadResumes();
+    function renderResumePreview() {
+        const d = collectEditorData();
+
+        let nameHTML = `<h1 class="rv-name">${escHtml(d.name || 'YOUR NAME')}</h1>`;
+        let taglineHTML = d.tagline ? `<div class="rv-tagline">${escHtml(d.tagline)}</div>` : '';
+        let contactParts = [];
+        if (d.location) contactParts.push(escHtml(d.location));
+        if (d.email) contactParts.push(escHtml(d.email));
+        if (d.phone) contactParts.push(escHtml(d.phone));
+        if (d.linkedin) contactParts.push(escHtml(d.linkedin));
+        let contactHTML = contactParts.length ? `<div class="rv-contact">${contactParts.join(' | ')}</div>` : '';
+
+        // Experience
+        let expHTML = reExperience.filter(e => e.title || e.company).map(e => `
+            <div class="rv-exp-entry">
+                <div class="rv-exp-header">
+                    <div>
+                        <div class="rv-job-title">${escHtml(e.title)}</div>
+                        <div class="rv-company">${escHtml(e.company)}${e.location ? ', ' + escHtml(e.location) : ''}</div>
+                    </div>
+                    <div class="rv-dates">${escHtml(e.start)}${e.end ? ' – ' + escHtml(e.end) : ''}</div>
+                </div>
+                <ul class="rv-bullets">
+                    ${e.bullets.filter(b => b).map(b => `<li>${escHtml(b)}</li>`).join('')}
+                </ul>
+            </div>`).join('');
+
+        // Education
+        let eduHTML = reEducation.filter(e => e.degree || e.school).map(e => `
+            <div class="rv-edu-entry">
+                <div class="rv-exp-header">
+                    <div>
+                        <div class="rv-job-title">${escHtml(e.degree)}</div>
+                        <div class="rv-company">${escHtml(e.school)}</div>
+                    </div>
+                    <div class="rv-dates">${escHtml(e.start)}${e.end ? ' - ' + escHtml(e.end) : ''}${e.location ? '<br>' + escHtml(e.location) : ''}</div>
+                </div>
+            </div>`).join('');
+
+        // Skills
+        let skillsHTML = '';
+        if (reSkills.length) {
+            skillsHTML = `<ul class="rv-skills-list">${reSkills.map(s => `<li>${escHtml(s)}</li>`).join('')}</ul>`;
+        }
+
+        // Languages
+        let langsHTML = '';
+        if (reLangs.length) {
+            langsHTML = `
+            <div class="rv-section rv-half">
+                <div class="rv-section-title">LANGUAGES</div>
+                <div class="rv-section-line"></div>
+                <div class="rv-lang-list">
+                    ${reLangs.map(l => `
+                        <div class="rv-lang-row">
+                            <span>${escHtml(l.name)}</span>
+                            <span class="rv-lang-dots">${'●'.repeat(l.level)}${'○'.repeat(5 - l.level)}</span>
+                        </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        // Awards
+        let awardsHTML = '';
+        if (reAwards.length) {
+            awardsHTML = `
+            <div class="rv-section rv-half">
+                <div class="rv-section-title">AWARDS</div>
+                <div class="rv-section-line"></div>
+                ${reAwards.map(a => `
+                    <div class="rv-award-entry">
+                        <div class="rv-award-title">${escHtml(a.title)}</div>
+                        ${a.org ? `<div class="rv-award-org">${escHtml(a.org)}</div>` : ''}
+                    </div>`).join('')}
+            </div>`;
+        }
+
+        // Certifications
+        let certHTML = '';
+        if (reCerts.length) {
+            certHTML = `
+            <div class="rv-section">
+                <div class="rv-section-title">CERTIFICATIONS</div>
+                <div class="rv-section-line"></div>
+                <ul class="rv-cert-list">${reCerts.map(c => `<li>${escHtml(c)}</li>`).join('')}</ul>
+            </div>`;
+        }
+
+        const html = `
+            <div class="rv-header">
+                ${nameHTML}
+                ${taglineHTML}
+                ${contactHTML}
+            </div>
+
+            ${d.summary ? `
+            <div class="rv-section">
+                <div class="rv-section-title">PROFESSIONAL SUMMARY</div>
+                <div class="rv-section-line"></div>
+                <p class="rv-summary-text">${escHtml(d.summary)}</p>
+            </div>` : ''}
+
+            ${reExperience.length ? `
+            <div class="rv-section">
+                <div class="rv-section-title">EXPERIENCE</div>
+                <div class="rv-section-line"></div>
+                ${expHTML}
+            </div>` : ''}
+
+            ${reEducation.length ? `
+            <div class="rv-section">
+                <div class="rv-section-title">EDUCATION</div>
+                <div class="rv-section-line"></div>
+                ${eduHTML}
+            </div>` : ''}
+
+            ${reSkills.length ? `
+            <div class="rv-section">
+                <div class="rv-section-title">SKILLS</div>
+                <div class="rv-section-line"></div>
+                ${skillsHTML}
+            </div>` : ''}
+
+            ${(reLangs.length || reAwards.length) ? `
+            <div class="rv-two-col">
+                ${langsHTML}
+                ${awardsHTML}
+            </div>` : ''}
+
+            ${certHTML}
+        `;
+
+        document.getElementById('rv-page').innerHTML = html;
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────
+    function collectEditorData() {
+        return {
+            name: document.getElementById('re-name').value.trim(),
+            tagline: document.getElementById('re-tagline').value.trim(),
+            location: document.getElementById('re-location').value.trim(),
+            email: document.getElementById('re-email').value.trim(),
+            phone: document.getElementById('re-phone').value.trim(),
+            linkedin: document.getElementById('re-linkedin').value.trim(),
+            summary: document.getElementById('re-summary').value.trim(),
+        };
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ─── Load profile data into editor ───────────────────────────
+    async function loadEditorFromProfile() {
+        try {
+            const p = await api.get('/api/profile');
+            if (p.full_name) document.getElementById('re-name').value = p.full_name;
+            if (p.phone) document.getElementById('re-phone').value = p.phone;
+            if (p.email) document.getElementById('re-email').value = p.email;
+            if (p.summary) document.getElementById('re-summary').value = p.summary;
+
+            const extra = p.resume_extra || {};
+            if (extra.tagline) document.getElementById('re-tagline').value = extra.tagline;
+            if (extra.location) document.getElementById('re-location').value = extra.location;
+            if (extra.linkedin) document.getElementById('re-linkedin').value = extra.linkedin;
+
+            // Skills
+            reSkills = Array.isArray(p.skills) ? [...p.skills] : [];
+            renderSkillTags();
+
+            // Certifications
+            reCerts = Array.isArray(extra.certifications) ? [...extra.certifications] : [];
+            renderCertList();
+
+            // Languages
+            reLangs = Array.isArray(extra.languages) ? [...extra.languages] : [];
+            renderLangList();
+
+            // Awards
+            reAwards = Array.isArray(extra.awards) ? [...extra.awards] : [];
+            renderAwardList();
+
+            // Experience
+            reExperience = [];
+            document.getElementById('re-exp-list').innerHTML = '';
+            const exps = Array.isArray(p.experience) ? p.experience : [];
+            exps.forEach(e => addExpEntry(e));
+            if (!exps.length) addExpEntry();
+
+            // Education
+            reEducation = [];
+            document.getElementById('re-edu-list').innerHTML = '';
+            const edus = Array.isArray(p.education) ? p.education : [];
+            edus.forEach(e => addEduEntry(e));
+            if (!edus.length) addEduEntry();
+
+        } catch(e) {
+            addExpEntry();
+            addEduEntry();
+        }
+        updatePreview();
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────
+    loadEditorFromProfile();
+
 </script>
 {% endblock %}

@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request, render_template, current_app
-from flask_login import login_required, current_user
 from sqlalchemy import desc
+from collections import Counter
 from app import db
-from app.models import Resume, Job, JobMatch
+from app.models import User, Resume, Job, JobMatch
 from app.services.skill_matcher import SkillMatcher
 
 bp = Blueprint('matching', __name__)
@@ -16,13 +16,11 @@ def _get_matcher():
 
 
 @bp.route('/match')
-@login_required
 def match_page():
     return render_template('match.html')
 
 
 @bp.route('/api/match', methods=['POST'])
-@login_required
 def run_match():
     """Match a single resume against a single job."""
     data      = request.get_json() or {}
@@ -32,7 +30,7 @@ def run_match():
     if not resume_id or not job_id:
         return jsonify({'error': 'resume_id and job_id required'}), 400
 
-    resume = Resume.query.filter_by(id=resume_id, user_id=current_user.id).first()
+    resume = Resume.query.filter_by(id=resume_id, user_id=1).first()
     if not resume:
         return jsonify({'error': 'Resume not found'}), 404
 
@@ -40,7 +38,8 @@ def run_match():
     if not job:
         return jsonify({'error': 'Job not found'}), 404
 
-    profile = current_user.profile
+    user = User.query.get(1)
+    profile = user.profile
     user_pref = {
         'desired_titles':    profile.desired_titles    if profile else [],
         'desired_locations': profile.desired_locations if profile else [],
@@ -87,7 +86,6 @@ def run_match():
 
 
 @bp.route('/api/match/batch', methods=['POST'])
-@login_required
 def batch_match():
     """Match all user resumes against all jobs (or a subset) and store results."""
     data      = request.get_json() or {}
@@ -96,18 +94,19 @@ def batch_match():
 
     # Pick resume
     if resume_id:
-        resumes = [Resume.query.filter_by(id=resume_id, user_id=current_user.id).first()]
+        resumes = [Resume.query.filter_by(id=resume_id, user_id=1).first()]
     else:
-        resumes = Resume.query.filter_by(user_id=current_user.id).all()
+        resumes = Resume.query.filter_by(user_id=1).all()
 
     if not resumes or resumes[0] is None:
         return jsonify({'error': 'No resumes found. Please upload a resume first.'}), 400
 
-    jobs = Job.query.order_by(desc(Job.posted_date)).limit(limit).all()
+    jobs = Job.query.order_by(Job.posted_date.desc()).limit(limit).all()
     if not jobs:
         return jsonify({'error': 'No jobs in database'}), 400
 
-    profile = current_user.profile
+    user = User.query.get(1)
+    profile = user.profile
     user_pref = {
         'desired_titles':    profile.desired_titles    if profile else [],
         'desired_locations': profile.desired_locations if profile else [],
@@ -159,14 +158,14 @@ def batch_match():
 
 
 @bp.route('/api/matches', methods=['GET'])
-@login_required
 def get_matches():
     """Return best matches for the current user's resumes."""
     limit     = request.args.get('limit',  20,  type=int)
     min_score = request.args.get('min_score', 0, type=float)
 
     # All resumes for user
-    resume_ids = [r.id for r in Resume.query.filter_by(user_id=current_user.id).all()]
+    resumes = Resume.query.filter_by(user_id=1).all()
+    resume_ids = [r.id for r in resumes]
     if not resume_ids:
         return jsonify([])
 
@@ -176,15 +175,45 @@ def get_matches():
                .order_by(desc(JobMatch.match_score))
                .limit(limit).all())
 
+    # Compute breakdowns for each match on the fly
+    matcher = _get_matcher()
+    user = User.query.get(1)
+    profile = user.profile if user else None
+    user_pref = {
+        'desired_titles':    profile.desired_titles    if profile else [],
+        'desired_locations': profile.desired_locations if profile else [],
+        'remote_preference': profile.remote_preference if profile else 'hybrid',
+        'min_salary':        profile.min_salary        if profile else 0,
+        'max_salary':        profile.max_salary        if profile else 0,
+    } if profile else {}
+
     result = []
     for m in matches:
         job = m.job
+        # Try to compute breakdown
+        breakdown = {'skills': 50, 'title': 50, 'location': 50, 'salary': 50}
+        try:
+            resume = next((r for r in resumes if r.id == m.resume_id), None)
+            if resume:
+                job_dict = {
+                    'id': job.id, 'title': job.title, 'location': job.location,
+                    'remote_type': job.remote_type,
+                    'required_skills': job.required_skills or [],
+                    'description': job.description or '',
+                    'salary_min': job.salary_min, 'salary_max': job.salary_max,
+                }
+                mr = matcher.match(resume.extracted_skills or [], job_dict, user_pref)
+                breakdown = mr.get('breakdown', breakdown)
+        except Exception:
+            pass
+
         result.append({
             'match_id':       m.id,
             'match_score':    m.match_score,
             'matched_skills': m.matched_skills,
             'missing_skills': m.missing_skills,
             'recommendation': m.recommendation,
+            'breakdown':      breakdown,
             'job': {
                 'id':        job.id,
                 'title':     job.title,
@@ -197,3 +226,85 @@ def get_matches():
         })
 
     return jsonify(result)
+
+
+@bp.route('/api/skill-score', methods=['GET'])
+def skill_score():
+    """Score each resume skill by market demand purely based on resume."""
+    user = User.query.get(1)
+    if not user:
+        return jsonify({'skills': [], 'readiness': 0})
+
+    profile_dict = {
+        'summary': user.profile.summary if user.profile else '',
+        'tagline': user.profile.resume_extra.get('tagline', '') if user.profile and user.profile.resume_extra else '',
+        'skills': user.profile.skills if user.profile else []
+    }
+
+    if not profile_dict['skills']:
+        # Try gathering from resumes if profile is empty
+        resumes = Resume.query.filter_by(user_id=1).all()
+        all_skills = []
+        for r in resumes:
+            all_skills.extend(r.extracted_skills or [])
+        profile_dict['skills'] = list(dict.fromkeys(all_skills))
+
+    if not profile_dict['skills']:
+        return jsonify({'skills': [], 'readiness': 0})
+
+    from app.services.resume_generator import ResumeGenerator
+    generator = ResumeGenerator(current_app.config.get('GEMINI_API_KEY', ''))
+    eval_result = generator.evaluate_resume_skills(profile_dict)
+
+    skills_out = eval_result.get('evaluated_skills', [])
+    skills_out.sort(key=lambda x: x.get('score', 0), reverse=True)
+    
+    # Calculate readiness (average of skill scores)
+    readiness = 0
+    if skills_out:
+        readiness = round(sum(s.get('score', 0) for s in skills_out) / len(skills_out))
+
+    return jsonify({'skills': skills_out, 'readiness': readiness})
+
+
+@bp.route('/api/skill-recommendations', methods=['GET'])
+def skill_recommendations():
+    """Recommend skills the user should learn based purely on their resume profile."""
+    user = User.query.get(1)
+    if not user:
+        return jsonify([])
+
+    profile_dict = {
+        'summary': user.profile.summary if user.profile else '',
+        'tagline': user.profile.resume_extra.get('tagline', '') if user.profile and user.profile.resume_extra else '',
+        'skills': user.profile.skills if user.profile else []
+    }
+
+    if not profile_dict['skills']:
+        # Try gathering from resumes if profile is empty
+        resumes = Resume.query.filter_by(user_id=1).all()
+        all_skills = []
+        for r in resumes:
+            all_skills.extend(r.extracted_skills or [])
+        profile_dict['skills'] = list(dict.fromkeys(all_skills))
+
+    if not profile_dict['skills']:
+        return jsonify([])
+
+    from app.services.resume_generator import ResumeGenerator
+    generator = ResumeGenerator(current_app.config.get('GEMINI_API_KEY', ''))
+    eval_result = generator.evaluate_resume_skills(profile_dict)
+
+    recs_out = eval_result.get('recommended_skills', [])
+    # Format to match frontend expectations: 'name', 'demand', 'pct'
+    formatted_recs = []
+    for r in recs_out:
+        formatted_recs.append({
+            'name': r.get('name', ''),
+            'demand': r.get('demand', 0),
+            'pct': r.get('pct', 0)
+        })
+        
+    formatted_recs.sort(key=lambda x: x['pct'], reverse=True)
+
+    return jsonify(formatted_recs[:10])

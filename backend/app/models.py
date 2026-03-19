@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app import db, login_manager
+from app import db
 import secrets
 
 
@@ -43,9 +43,7 @@ class User(UserMixin, db.Model):
         return ATSConnection.query.filter_by(user_id=self.id, provider=provider).first()
 
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+# User loader removed as auth is no longer needed
 
 
 # ─────────────────────────────────────────
@@ -96,8 +94,18 @@ class Profile(db.Model):
     max_salary        = db.Column(db.Integer, default=0)
 
     # Auto-apply settings
-    auto_apply_enabled   = db.Column(db.Boolean, default=False)
-    applications_per_day = db.Column(db.Integer, default=5)
+    auto_apply_enabled       = db.Column(db.Boolean, default=False)
+    applications_per_day     = db.Column(db.Integer, default=5)
+    auto_apply_match_threshold = db.Column(db.Integer, default=85)  # 0-100
+
+    # Rules Engine
+    company_blacklist = db.Column(db.JSON, default=list)   # ['Google', 'Meta', …]
+    company_whitelist = db.Column(db.JSON, default=list)   # if set, ONLY apply to these
+    keyword_blockers  = db.Column(db.JSON, default=list)   # ['intern', 'unpaid', …]
+    stealth_mode      = db.Column(db.Boolean, default=False)  # skip companies already in network
+
+    # Extra resume fields (tagline, location, linkedin, certifications)
+    resume_extra = db.Column(db.JSON, default=dict)
 
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

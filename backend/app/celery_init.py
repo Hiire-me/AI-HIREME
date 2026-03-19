@@ -19,7 +19,8 @@ def make_celery(app=None):
         celery.Task = ContextTask
     return celery
 
-# In some implementations, we create a default celery app directly for workers
-from app import create_app
-flask_app = create_app()
-celery_app = make_celery(flask_app)
+# Module-level celery_app created without a Flask app context.
+# It gets properly configured in create_app() via celery.conf.update(app.config).
+# CELERY_TASK_ALWAYS_EAGER=True (set in config.py when no REDIS_URL env var)
+# ensures tasks run synchronously in development/Windows without Redis.
+celery_app = make_celery()
