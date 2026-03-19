@@ -55,7 +55,7 @@ REM ── 3. Install dependencies ───────────────
 echo [3/4] Installing dependencies (first run may take ~2 min)...
 "%PY%" -m pip install flask flask-sqlalchemy flask-migrate flask-login flask-cors ^
   werkzeug python-dotenv requests beautifulsoup4 PyPDF2 python-docx ^
-  scikit-learn numpy flashtext markdown aiohttp celery redis playwright firebase-admin ^
+  scikit-learn numpy flashtext markdown aiohttp celery redis playwright ^
   flask-socketio --quiet --disable-pip-version-check
 
 IF ERRORLEVEL 1 (
