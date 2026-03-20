@@ -4,16 +4,25 @@ from pathlib import Path
 # Base directory of the project (one level above backend/)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# Detect Vercel serverless environment
+IS_VERCEL = bool(os.environ.get('VERCEL'))
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
 
-    # SQLite default — stored in backend/instance/
-    _db_path = os.path.join(BASE_DIR, 'backend', 'instance', 'jobagent.db')
+    # Database — use /tmp on Vercel (read-only filesystem), local path otherwise
+    if IS_VERCEL:
+        _db_path = '/tmp/jobagent.db'
+    else:
+        _db_path = os.path.join(BASE_DIR, 'backend', 'instance', 'jobagent.db')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{_db_path}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Upload folder for resumes
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'data', 'uploads')
+    # Upload folder for resumes — /tmp on Vercel
+    if IS_VERCEL:
+        UPLOAD_FOLDER = '/tmp/uploads'
+    else:
+        UPLOAD_FOLDER = os.path.join(BASE_DIR, 'data', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
 
     # Skills database path

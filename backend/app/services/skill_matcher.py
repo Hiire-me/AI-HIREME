@@ -4,10 +4,16 @@ Skill Matcher Service
 - Direct keyword overlap scoring
 - Multi-factor weighted scoring: skills(40%) + title(30%) + location(20%) + salary(10%)
 """
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from typing import Dict, List, Any
-import numpy as np
+
+# Heavy ML packages — optional (not available on Vercel serverless)
+try:
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+    import numpy as np
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
 
 
 class SkillMatcher:
@@ -19,7 +25,10 @@ class SkillMatcher:
     CONSIDER = 35
 
     def __init__(self):
-        self.vectorizer = TfidfVectorizer(max_features=2000, stop_words='english')
+        if HAS_SKLEARN:
+            self.vectorizer = TfidfVectorizer(max_features=2000, stop_words='english')
+        else:
+            self.vectorizer = None
 
     # ─────────────────────────────────────────────────
     # Public API
@@ -122,7 +131,7 @@ class SkillMatcher:
         # 2. Semantic similarity via TF-IDF against job description
         semantic = 0.0
         combined_text = job_description
-        if resume_skills and combined_text:
+        if HAS_SKLEARN and self.vectorizer and resume_skills and combined_text:
             try:
                 resume_str = ' '.join(resume_skills)
                 tfidf = self.vectorizer.fit_transform([resume_str, combined_text])

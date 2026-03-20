@@ -1,1 +1,30 @@
--r backend/requirements.txt
+# Web Framework
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.7
+flask-login==0.6.3
+flask-cors==4.0.1
+
+# Database
+sqlalchemy==2.0.30
+
+# Resume Parsing
+PyPDF2==3.0.1
+python-docx==1.1.2
+
+# Job API integration
+aiohttp==3.9.5
+requests==2.32.3
+beautifulsoup4==4.12.3
+
+# AI Resume Generation
+google-generativeai==0.7.2
+
+# NLP & Skill Matching (lightweight only)
+flashtext==2.7
+
+# Utilities
+python-dotenv==1.0.1
+werkzeug==3.0.3
+markdown==3.6
+resend==2.4.0

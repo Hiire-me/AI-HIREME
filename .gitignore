@@ -4,3 +4,17 @@ __pycache__/
 .env
 instance/
 firebase-debug.log
+
+# Large / unnecessary for deployment
+python-embed/
+py_embed.zip
+node_modules/
+*.db
+crash.log
+*.log
+server.log
+git_error.log
+.agents/
+.agent/
+.md/
+data/uploads/
