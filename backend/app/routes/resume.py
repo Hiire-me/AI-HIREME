@@ -1,5 +1,6 @@
 import os
 from flask import Blueprint, jsonify, request, render_template, current_app, send_file
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import User, Resume, Profile
@@ -34,8 +35,9 @@ def _allowed(filename):
 # ─────────────────────────────────────────
 
 @bp.route('/resume')
+@login_required
 def resume_page():
-    resumes = Resume.query.filter_by(user_id=1).order_by(Resume.created_at.desc()).all()
+    resumes = Resume.query.filter_by(user_id=current_user.id).order_by(Resume.created_at.desc()).all()
     return render_template('resume.html', resumes=resumes)
 
 
@@ -44,6 +46,7 @@ def resume_page():
 # ─────────────────────────────────────────
 
 @bp.route('/api/resume/upload', methods=['POST'])
+@login_required
 def upload_resume():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -67,7 +70,7 @@ def upload_resume():
 
     # Save to DB
     resume = Resume(
-        user_id          = 1,
+        user_id          = current_user.id,
         filename         = filename,
         file_path        = file_path,
         raw_text         = parsed.get('raw_text', ''),
@@ -77,7 +80,7 @@ def upload_resume():
     db.session.add(resume)
 
     # Sync skills to profile
-    user = User.query.get(1)
+    user = current_user
     profile = user.profile
     if profile:
         existing = set(profile.skills or [])
@@ -97,8 +100,9 @@ def upload_resume():
 
 
 @bp.route('/api/resume/list', methods=['GET'])
+@login_required
 def list_resumes():
-    resumes = Resume.query.filter_by(user_id=1) \
+    resumes = Resume.query.filter_by(user_id=current_user.id) \
                           .order_by(Resume.created_at.desc()).all()
     return jsonify([{
         'id':          r.id,
@@ -114,9 +118,10 @@ def list_resumes():
 # ─────────────────────────────────────────
 
 @bp.route('/api/resume/generate', methods=['POST'])
+@login_required
 def generate_resume():
     data = request.get_json() or {}
-    user = User.query.get(1)
+    user = current_user
     profile = user.profile
 
     user_profile = {
@@ -151,9 +156,10 @@ def generate_resume():
 
 
 @bp.route('/api/cover-letter/generate', methods=['POST'])
+@login_required
 def generate_cover_letter():
     data = request.get_json() or {}
-    user = User.query.get(1)
+    user = current_user
     profile = user.profile
 
     user_profile = {
@@ -181,6 +187,7 @@ def generate_cover_letter():
 
 
 @bp.route('/api/resume/download', methods=['POST'])
+@login_required
 def download_resume():
     data    = request.get_json() or {}
     content = data.get('content', '')
@@ -191,7 +198,7 @@ def download_resume():
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    user = User.query.get(1)
+    user = current_user
     name = (user.full_name or 'Resume').replace(' ', '_')
     return send_file(path, as_attachment=True,
                      download_name=f"Resume_{name}.md",

@@ -63,134 +63,121 @@ def execute_auto_apply(self, application_id):
 def auto_apply_loop():
     """
     Hourly Celery task — automatically queues auto-apply for high-scoring matches.
-
-    Logic (per spec):
-        > threshold  → auto-apply immediately
-        0.70–threshold → add to approval queue (status='pending')
-        < 0.70       → skip
+    Iterates over all users with auto_apply_enabled.
     """
-    user = User.query.get(1)
-    if not user:
-        return 'No user found'
-
-    profile = user.profile
-    if not profile or not profile.auto_apply_enabled:
-        return 'Auto-apply is disabled for this user'
-
-    threshold    = profile.auto_apply_match_threshold or 85
-    daily_limit  = profile.applications_per_day or 5
-    blacklisted  = {c.lower() for c in (profile.company_blacklist or [])}
-    whitelisted  = {c.lower() for c in (profile.company_whitelist or [])}
-    blockers     = [kw.lower() for kw in (profile.keyword_blockers or [])]
-
-    # Count how many auto-applications have been created today
-    today_start = datetime.combine(date.today(), datetime.min.time())
-    already_today = Application.query.filter(
-        Application.user_id == 1,
-        Application.auto_applied == True,
-        Application.applied_at >= today_start,
-    ).count()
-
-    remaining_slots = daily_limit - already_today
-    if remaining_slots <= 0:
-        return f'Daily auto-apply limit ({daily_limit}) reached'
-
-    # Get already-applied job IDs to avoid duplicate applications
-    applied_job_ids = {
-        a.job_id for a in Application.query.filter_by(user_id=1).all()
-    }
-
-    # Fetch matches above threshold, ordered best-first
+    from app.models import Profile, Resume
     from sqlalchemy import desc
-    from app.models import Resume
-    resume_ids = [r.id for r in Resume.query.filter_by(user_id=1).all()]
-    if not resume_ids:
-        return 'No resumes found — upload a resume first'
+    
+    users = User.query.join(Profile).filter(Profile.auto_apply_enabled == True).all()
+    results = []
 
-    high_matches = (
-        JobMatch.query
-        .filter(JobMatch.resume_id.in_(resume_ids))
-        .filter(JobMatch.match_score >= threshold)
-        .order_by(desc(JobMatch.match_score))
-        .all()
-    )
+    if not users:
+        return 'No users with auto-apply enabled'
 
-    queued = 0
-    skipped = 0
-    for match in high_matches:
-        if queued >= remaining_slots:
-            break
+    for user in users:
+        profile = user.profile
+        threshold    = profile.auto_apply_match_threshold or 85
+        daily_limit  = profile.applications_per_day or 5
+        blacklisted  = {c.lower() for c in (profile.company_blacklist or [])}
+        whitelisted  = {c.lower() for c in (profile.company_whitelist or [])}
+        blockers     = [kw.lower() for kw in (profile.keyword_blockers or [])]
 
-        job = match.job
-        if not job or not job.url:
-            skipped += 1
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        already_today = Application.query.filter(
+            Application.user_id == user.id,
+            Application.auto_applied == True,
+            Application.applied_at >= today_start,
+        ).count()
+
+        remaining_slots = daily_limit - already_today
+        if remaining_slots <= 0:
+            results.append(f'User {user.id}: Daily limit reached')
             continue
 
-        # Rules Engine filters
-        company_lower = job.company.lower()
-        if company_lower in blacklisted:
-            skipped += 1
-            continue
-        if whitelisted and company_lower not in whitelisted:
-            skipped += 1
+        applied_job_ids = {a.job_id for a in Application.query.filter_by(user_id=user.id).all()}
+        resume_ids = [r.id for r in Resume.query.filter_by(user_id=user.id).all()]
+        if not resume_ids:
+            results.append(f'User {user.id}: No resumes')
             continue
 
-        title_desc = f"{job.title} {job.description or ''}".lower()
-        if any(kw in title_desc for kw in blockers):
-            skipped += 1
-            continue
+        high_matches = (
+            JobMatch.query
+            .filter(JobMatch.resume_id.in_(resume_ids))
+            .filter(JobMatch.match_score >= threshold)
+            .order_by(desc(JobMatch.match_score))
+            .all()
+        )
 
-        # Stealth mode: skip if user already applied to this company manually
-        if profile.stealth_mode:
-            company_jobs = {a.job.company.lower() for a in
-                            Application.query.filter_by(user_id=1).join(Job).all()
-                            if a.job}
-            if company_lower in company_jobs:
+        queued = 0
+        skipped = 0
+        for match in high_matches:
+            if queued >= remaining_slots:
+                break
+
+            job = match.job
+            if not job or not job.url:
                 skipped += 1
                 continue
 
-        # Skip jobs already applied to
-        if job.id in applied_job_ids:
-            skipped += 1
-            continue
+            company_lower = job.company.lower()
+            if company_lower in blacklisted or (whitelisted and company_lower not in whitelisted):
+                skipped += 1
+                continue
 
-        # Only auto-apply to supported ATS platforms
-        if not job.url or ('greenhouse.io' not in job.url and 'lever.co' not in job.url):
-            skipped += 1
-            continue
+            title_desc = f"{job.title} {job.description or ''}".lower()
+            if any(kw in title_desc for kw in blockers):
+                skipped += 1
+                continue
 
-        # Create application and queue the bot
-        app_obj = Application(
-            user_id     = 1,
-            job_id      = job.id,
-            match_score = match.match_score,
-            status      = 'reviewing',
-            auto_applied= False,  # will be set to True after bot succeeds
-        )
-        db.session.add(app_obj)
-        db.session.flush()
-        applied_job_ids.add(job.id)
-        queued += 1
+            if profile.stealth_mode:
+                company_jobs = {a.job.company.lower() for a in
+                                Application.query.filter_by(user_id=user.id).join(Job).all()
+                                if a.job}
+                if company_lower in company_jobs:
+                    skipped += 1
+                    continue
 
-    db.session.commit()
+            if job.id in applied_job_ids:
+                skipped += 1
+                continue
 
-    # Queue Playwright tasks for newly created applications
-    new_apps = Application.query.filter(
-        Application.user_id == 1,
-        Application.status == 'reviewing',
-        Application.auto_applied == False,
-        Application.applied_at >= today_start,
-    ).all()
+            if not job.url or ('greenhouse.io' not in job.url and 'lever.co' not in job.url):
+                skipped += 1
+                continue
 
-    for a in new_apps:
-        execute_auto_apply.delay(a.id)
+            app_obj = Application(
+                user_id     = user.id,
+                job_id      = job.id,
+                match_score = match.match_score,
+                status      = 'reviewing',
+                auto_applied= False,
+            )
+            db.session.add(app_obj)
+            db.session.flush()
+            applied_job_ids.add(job.id)
+            queued += 1
 
-    return {
-        'queued':  queued,
-        'skipped': skipped,
-        'daily_limit': daily_limit,
-        'used_today': already_today + queued,
-    }
+        db.session.commit()
+
+        new_apps = Application.query.filter(
+            Application.user_id == user.id,
+            Application.status == 'reviewing',
+            Application.auto_applied == False,
+            Application.applied_at >= today_start,
+        ).all()
+
+        for a in new_apps:
+            execute_auto_apply.delay(a.id)
+
+        results.append({
+            'user_id': user.id,
+            'queued':  queued,
+            'skipped': skipped,
+            'daily_limit': daily_limit,
+            'used_today': already_today + queued,
+        })
+
+    return results
 
 
 @celery_app.task(name='app.tasks.daily_job_scrape')

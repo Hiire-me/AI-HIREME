@@ -9,6 +9,8 @@ load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
+from flask_login import LoginManager
+login_manager = LoginManager()
 
 # Flask-SocketIO instance — initialized lazily in create_app()
 try:
@@ -37,6 +39,9 @@ def create_app():
     # Extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = "Please log in to access this page."
     CORS(app, resources={r"/*": {"origins": "*"}})
 
     # WebSocket via flask-socketio
@@ -61,8 +66,9 @@ def create_app():
         print(f"[init] Celery config warning: {e}")
 
     # Blueprints
-    from app.routes import resume, jobs, matching, applications, profile
+    from app.routes import auth, resume, jobs, matching, applications, profile
     from app.routes import ws_events
+    app.register_blueprint(auth.bp)
     app.register_blueprint(resume.bp)
     app.register_blueprint(jobs.bp)
     app.register_blueprint(matching.bp)

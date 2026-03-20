@@ -8,7 +8,7 @@
         <div class="page-subtitle">See how your resume aligns with every job — automatically</div>
     </div>
     <div style="display:flex; gap:12px;">
-        <a href="/resume" class="btn btn-secondary">Add Resume</a>
+        <button onclick="document.getElementById('upload-resume-modal').classList.add('open')" class="btn btn-secondary">Add Resume</button>
         <button class="btn btn-primary" id="btn-auto-match">
             Auto-Match All Jobs
         </button>
@@ -150,11 +150,97 @@
         </div>
     </div>
 </div>
+
+<!-- Upload Resume Modal -->
+<div class="modal-backdrop" id="upload-resume-modal" style="z-index: 3000;">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <div class="modal-title">Upload Resume</div>
+            <button class="modal-close" onclick="document.getElementById('upload-resume-modal').classList.remove('open')">✕</button>
+        </div>
+        <div class="resume-upload-zone" id="resume-upload-zone" onclick="document.getElementById('ru-file').click()"
+            ondragover="matchHandleDragOver(event)" ondragleave="matchHandleDragLeave(event)" ondrop="matchHandleDrop(event)">
+            <input type="file" id="ru-file" style="display:none" accept=".pdf,.docx,.txt" onchange="matchHandleFileSelect(event)">
+            <div class="ru-icon">📄</div>
+            <div class="ru-title">Upload your existing resume</div>
+            <div class="ru-sub">Drag & drop a PDF, DOCX, or TXT file here, or click to browse.</div>
+            <div class="ru-loader" id="ru-loader" style="display:none">
+                <Spinner></Spinner> Parsing resume...
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let matchData = [];
+
+    // ─── Drag and Drop Upload ─────────────────────────────────────
+    function matchHandleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.add('drag-over');
+    }
+    function matchHandleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.remove('drag-over');
+    }
+    function matchHandleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById('resume-upload-zone').classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            matchUploadResumeFile(e.dataTransfer.files[0]);
+        }
+    }
+    function matchHandleFileSelect(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            matchUploadResumeFile(e.target.files[0]);
+        }
+    }
+
+    async function matchUploadResumeFile(file) {
+        const zone = document.getElementById('resume-upload-zone');
+        const loader = document.getElementById('ru-loader');
+        zone.style.pointerEvents = 'none';
+        loader.style.display = 'block';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/resume/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            
+            if (!res.ok) throw new Error(data.error || 'Upload failed');
+            
+            toast('Resume uploaded and parsed successfully!', 'success');
+            document.getElementById('upload-resume-modal').classList.remove('open');
+            
+            // Auto-run match against all jobs if desired
+            showLoading('Auto-Matching Jobs with fresh resume…');
+            const matchRes = await api.post('/api/match/batch', { limit: 50 });
+            toast(`Computed ${matchRes.matches_computed} match scores!`, 'success');
+            
+            loadMatches();
+            loadSkillScores();
+            loadSkillRecs();
+            setTimeout(checkSuggestions, 600);
+            
+        } catch (e) {
+            toast(e.message, 'error');
+        } finally {
+            zone.style.pointerEvents = 'auto';
+            loader.style.display = 'none';
+            document.getElementById('ru-file').value = '';
+            hideLoading();
+        }
+    }
 
     // ─── Load Matches ────────────────────────────────────────────
     async function loadMatches() {

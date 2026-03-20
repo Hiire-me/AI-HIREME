@@ -43,7 +43,11 @@ class User(UserMixin, db.Model):
         return ATSConnection.query.filter_by(user_id=self.id, provider=provider).first()
 
 
-# User loader removed as auth is no longer needed
+from app import login_manager
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 
 # ─────────────────────────────────────────

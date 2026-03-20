@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
+from flask_login import login_required, current_user
 from app import db
 from app.models import User, Profile
 
@@ -7,8 +7,9 @@ bp = Blueprint('profile', __name__)
 
 
 @bp.route('/api/profile', methods=['GET'])
+@login_required
 def get_profile():
-    user = User.query.get(1)
+    user = current_user
     p = user.profile
     return jsonify({
         'full_name':          user.full_name,
@@ -36,9 +37,10 @@ def get_profile():
 
 
 @bp.route('/api/profile', methods=['POST', 'PUT'])
+@login_required
 def update_profile():
     data = request.get_json() or {}
-    user = User.query.get(1)
+    user = current_user
 
     # Update user table fields
     if 'full_name' in data:
@@ -49,7 +51,7 @@ def update_profile():
     # Update or create profile
     p = user.profile
     if not p:
-        p = Profile(user_id=1)
+        p = Profile(user_id=current_user.id)
         db.session.add(p)
 
     str_fields  = ['summary', 'remote_preference']
