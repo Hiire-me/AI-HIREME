@@ -5,9 +5,15 @@ flask-sqlalchemy==3.1.1
 flask-migrate==4.0.7
 flask-login==0.6.3
 flask-cors==4.0.1
+flask-socketio==5.3.6
 
 # Database
 sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+
+# Background Tasks
+celery==5.4.0
+redis==5.0.7
 
 # Resume Parsing
 PyPDF2==3.0.1
@@ -32,3 +38,4 @@ python-dotenv==1.0.1
 werkzeug==3.0.3
 markdown==3.6
 resend==2.4.0
+

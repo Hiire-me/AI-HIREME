@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Embedded Python (Windows-only bootstrap — not needed in Docker)
+python-embed/
+py_embed.zip
+
+# Local SQLite database (we use Supabase in production)
+backend/instance/
+*.db
+*.sqlite
+
+# Local environment files (secrets go in HF Spaces Secrets, not files)
+backend/.env
+.env
+
+# Git
+.git/
+.gitignore
+
+# Uploaded resumes (ephemeral — /tmp used in cloud)
+data/uploads/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Test artifacts
+backend/tests/
