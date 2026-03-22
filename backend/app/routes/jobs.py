@@ -199,10 +199,14 @@ def _is_job_blocked(job_dict: dict, profile) -> bool:
 
 def _store_jobs(jobs, provider='API', company=''):
     """Common helper: persist deduplicated jobs to the DB, applying rules engine filter."""
+    from flask_login import current_user
     from app.models import User
 
-    # Load guest profile for rules filtering
-    user    = User.query.get(1)
+    # Use authenticated user if available, else fallback
+    if current_user and current_user.is_authenticated:
+        user = current_user
+    else:
+        user = User.query.first()
     profile = user.profile if user else None
 
     added   = 0

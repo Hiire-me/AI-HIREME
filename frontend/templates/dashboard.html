@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Your AI job agent command center</div>
+    </div>
+    <div style="display:flex;gap:10px">
+        <a href="{{ url_for('matching.match_page') }}" class="btn btn-secondary">Run Matching</a>
+        <a href="{{ url_for('jobs.jobs_page') }}" class="btn btn-primary">Browse Jobs</a>
+    </div>
+</div>
+
+<!-- Overview Stats -->
+<div class="stats-grid" id="dash-stats" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stat-card stat-card--glow">
+        <div class="stat-icon" style="color:#818CF8"></div>
+        <div class="stat-value" id="ds-apps">—</div>
+        <div class="stat-label">Applications</div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-icon" style="color:#34d399"></div>
+        <div class="stat-value" id="ds-matches">—</div>
+        <div class="stat-label">Matches</div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-icon" style="color:#fbbf24"></div>
+        <div class="stat-value" id="ds-interviews">—</div>
+        <div class="stat-label">Interviews</div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-icon" style="color:#f87171"></div>
+        <div class="stat-value" id="ds-offers">—</div>
+        <div class="stat-label">Offers</div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-icon" style="color:#60a5fa"></div>
+        <div class="stat-value" id="ds-jobs">—</div>
+        <div class="stat-label">Jobs in DB</div>
+    </div>
+</div>
+
+<!-- Two Column Layout -->
+<div class="dash-grid">
+    <!-- Left: Live Job Feed -->
+    <div class="dash-panel">
+        <div class="panel-header">
+            <h3 class="panel-title">
+                <span class="pulse-dot"></span>
+                Live Job Feed
+            </h3>
+            <a href="{{ url_for('jobs.jobs_page') }}" class="panel-link">View All →</a>
+        </div>
+        <div id="dash-feed" class="feed-list">
+            <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <!-- Right: Top Matches & Recent Apps -->
+    <div style="display:flex;flex-direction:column;gap:20px">
+        <!-- Top Matches -->
+        <div class="dash-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Top Matches</h3>
+                <a href="{{ url_for('matching.match_page') }}" class="panel-link">Match →</a>
+            </div>
+            <div id="dash-matches" class="feed-list">
+                <div class="empty-state" style="padding:20px"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- Recent Applications -->
+        <div class="dash-panel">
+            <div class="panel-header">
+                <h3 class="panel-title">Recent Applications</h3>
+                <a href="{{ url_for('applications.applications_page') }}" class="panel-link">View →</a>
+            </div>
+            <div id="dash-recent" class="feed-list">
+                <div class="empty-state" style="padding:20px"><div class="spinner"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="dash-actions">
+    <a href="{{ url_for('resume.resume_page') }}" class="action-card">
+        <div class="action-icon"></div>
+        <div class="action-label">Upload Resume</div>
+    </a>
+    <a href="{{ url_for('matching.match_page') }}" class="action-card">
+        <div class="action-icon"></div>
+        <div class="action-label">Run Match</div>
+    </a>
+    <a href="/settings" class="action-card">
+        <div class="action-icon"></div>
+        <div class="action-label">Settings</div>
+    </a>
+    <a href="/analytics" class="action-card">
+        <div class="action-icon"></div>
+        <div class="action-label">Analytics</div>
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+    try {
+        const data = await api.get('/api/dashboard/summary');
+        // Stats
+        document.getElementById('ds-apps').textContent = data.stats.total_applications;
+        document.getElementById('ds-matches').textContent = data.stats.total_matches;
+        document.getElementById('ds-interviews').textContent = data.stats.interviews;
+        document.getElementById('ds-offers').textContent = data.stats.offers;
+        document.getElementById('ds-jobs').textContent = data.stats.total_jobs;
+
+        // Job Feed
+        const feed = document.getElementById('dash-feed');
+        if (data.job_feed.length) {
+            feed.innerHTML = data.job_feed.map(j => `
+                <div class="feed-item" onclick="window.location='/jobs'">
+                    <div class="feed-logo">${j.company[0]}</div>
+                    <div class="feed-info">
+                        <div class="feed-title">${j.title}</div>
+                        <div class="feed-meta">${j.company} · ${j.source || 'seed'} · ${timeAgo(j.posted_date)}</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            feed.innerHTML = '<div class="empty-mini">No jobs yet. <a href="/jobs">Fetch some!</a></div>';
+        }
+
+        // Top Matches
+        const matchEl = document.getElementById('dash-matches');
+        if (data.top_matches.length) {
+            matchEl.innerHTML = data.top_matches.map(m => `
+                <div class="feed-item">
+                    <div class="match-score-mini ${m.score >= 70 ? 'score-strong' : m.score >= 45 ? 'score-good' : 'score-low'}">${Math.round(m.score)}%</div>
+                    <div class="feed-info">
+                        <div class="feed-title">${m.job.title}</div>
+                        <div class="feed-meta">${m.job.company} · ${m.recommendation || '—'}</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            matchEl.innerHTML = '<div class="empty-mini">No matches yet. Upload a resume and run matching!</div>';
+        }
+
+        // Recent Applications
+        const recentEl = document.getElementById('dash-recent');
+        if (data.recent_applications.length) {
+            recentEl.innerHTML = data.recent_applications.map(a => `
+                <div class="feed-item">
+                    <div class="status-dot status-${a.status}"></div>
+                    <div class="feed-info">
+                        <div class="feed-title">${a.job.title}</div>
+                        <div class="feed-meta">${a.job.company} · ${a.status} · ${timeAgo(a.applied_at)}</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            recentEl.innerHTML = '<div class="empty-mini">No applications yet.</div>';
+        }
+
+    } catch (e) {
+        console.error('Dashboard load error:', e);
+    }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

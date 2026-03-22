@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">Settings & Rules Engine</div>
+        <div class="page-subtitle">Control your auto-apply behavior, blocklists, and preferences</div>
+    </div>
+    <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">Save All Settings</button>
+</div>
+
+<div class="settings-layout">
+    <!-- Left Column -->
+    <div class="settings-col">
+        <!-- Auto-Apply Settings -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3>Auto-Apply Configuration</h3>
+            </div>
+            <div class="settings-card-body">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Enable Auto-Apply</div>
+                        <div class="setting-desc">Automatically apply to jobs above your match threshold</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="set-auto-apply">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Match Threshold</div>
+                        <div class="setting-desc">Only auto-apply when match score is above this %</div>
+                    </div>
+                    <div class="slider-wrap">
+                        <input type="range" id="set-threshold" min="0" max="100" value="85" class="range-slider">
+                        <span class="slider-value" id="threshold-val">85%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Daily Apply Limit</div>
+                        <div class="setting-desc">Max applications per day to avoid spam flagging</div>
+                    </div>
+                    <div class="slider-wrap">
+                        <input type="range" id="set-daily-limit" min="1" max="50" value="5" class="range-slider">
+                        <span class="slider-value" id="limit-val">5</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Stealth Mode</div>
+                        <div class="setting-desc">Only apply to companies not already in your network</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="set-stealth">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Preferences -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3>Job Preferences</h3>
+            </div>
+            <div class="settings-card-body">
+                <div class="form-group">
+                    <label class="form-label">DESIRED JOB TITLES</label>
+                    <div class="chip-input-wrap" id="wrap-titles">
+                        <div class="chip-list" id="chips-titles"></div>
+                        <input type="text" class="chip-input" id="input-titles" placeholder="e.g. Backend Developer, ML Engineer…" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">PREFERRED LOCATIONS</label>
+                    <div class="chip-input-wrap" id="wrap-locations">
+                        <div class="chip-list" id="chips-locations"></div>
+                        <input type="text" class="chip-input" id="input-locations" placeholder="e.g. Remote, London, New York…" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">WORK TYPE</label>
+                    <select id="set-remote" class="form-control">
+                        <option value="remote">Remote</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="onsite">Onsite</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                    <div class="form-group">
+                        <label class="form-label">MIN SALARY ($)</label>
+                        <input type="number" id="set-min-sal" class="form-control" placeholder="0" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MAX SALARY ($)</label>
+                        <input type="number" id="set-max-sal" class="form-control" placeholder="0" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="settings-col">
+        <!-- Company Blacklist -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3>Company Blacklist</h3>
+                <span class="chip-count" id="blacklist-count">0</span>
+            </div>
+            <div class="settings-card-body">
+                <p class="setting-desc" style="margin-bottom:12px">Jobs from these companies will be automatically skipped.</p>
+                <div class="chip-input-wrap" id="wrap-blacklist">
+                    <div class="chip-list" id="chips-blacklist"></div>
+                    <input type="text" class="chip-input" id="input-blacklist" placeholder="Type company name and press Enter…" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Whitelist -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3>Company Whitelist</h3>
+                <span class="chip-count" id="whitelist-count">0</span>
+            </div>
+            <div class="settings-card-body">
+                <p class="setting-desc" style="margin-bottom:12px">If set, <strong>only</strong> apply to these companies. Leave empty to apply to all.</p>
+                <div class="chip-input-wrap" id="wrap-whitelist">
+                    <div class="chip-list" id="chips-whitelist"></div>
+                    <input type="text" class="chip-input" id="input-whitelist" placeholder="Type company name and press Enter…" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyword Blockers -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <h3>Keyword Blockers</h3>
+                <span class="chip-count" id="blockers-count">0</span>
+            </div>
+            <div class="settings-card-body">
+                <p class="setting-desc" style="margin-bottom:12px">Jobs containing any of these words in their title or description will be skipped.</p>
+                <div class="chip-input-wrap" id="wrap-blockers">
+                    <div class="chip-list" id="chips-blockers"></div>
+                    <input type="text" class="chip-input" id="input-blockers" placeholder='e.g. "unpaid", "intern", "on-site only"…' />
+                </div>
+                <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+                    <span style="font-size:11px;color:var(--text-3)">Quick add:</span>
+                    <button class="btn btn-secondary btn-sm" onclick="addQuickBlocker('unpaid')">unpaid</button>
+                    <button class="btn btn-secondary btn-sm" onclick="addQuickBlocker('intern')">intern</button>
+                    <button class="btn btn-secondary btn-sm" onclick="addQuickBlocker('on-site only')">on-site only</button>
+                    <button class="btn btn-secondary btn-sm" onclick="addQuickBlocker('voluntary')">voluntary</button>
+                    <button class="btn btn-secondary btn-sm" onclick="addQuickBlocker('no pay')">no pay</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── Chip Management ──────────────────────────────────────────────
+const chipData = {
+    titles: [],
+    locations: [],
+    blacklist: [],
+    whitelist: [],
+    blockers: [],
+};
+
+function renderChips(key) {
+    const el = document.getElementById('chips-' + key);
+    el.innerHTML = chipData[key].map((v, i) => `
+        <span class="chip">
+            ${v}
+            <button class="chip-remove" onclick="removeChip('${key}', ${i})">×</button>
+        </span>
+    `).join('');
+    // Update count badges
+    const countEl = document.getElementById(key + '-count');
+    if (countEl) countEl.textContent = chipData[key].length;
+}
+
+function addChip(key, value) {
+    const v = value.trim();
+    if (v && !chipData[key].includes(v)) {
+        chipData[key].push(v);
+        renderChips(key);
+    }
+}
+
+function removeChip(key, index) {
+    chipData[key].splice(index, 1);
+    renderChips(key);
+}
+
+function addQuickBlocker(word) {
+    addChip('blockers', word);
+}
+
+// Wire Enter key for chip inputs
+['titles', 'locations', 'blacklist', 'whitelist', 'blockers'].forEach(key => {
+    const input = document.getElementById('input-' + key);
+    if (input) {
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addChip(key, input.value);
+                input.value = '';
+            }
+        });
+    }
+});
+
+// ─── Sliders ──────────────────────────────────────────────────────
+document.getElementById('set-threshold').addEventListener('input', e => {
+    document.getElementById('threshold-val').textContent = e.target.value + '%';
+});
+document.getElementById('set-daily-limit').addEventListener('input', e => {
+    document.getElementById('limit-val').textContent = e.target.value;
+});
+
+// ─── Load Settings ────────────────────────────────────────────────
+async function loadSettings() {
+    try {
+        const p = await api.get('/api/profile');
+
+        document.getElementById('set-auto-apply').checked = p.auto_apply_enabled || false;
+        document.getElementById('set-threshold').value = p.auto_apply_match_threshold || 85;
+        document.getElementById('threshold-val').textContent = (p.auto_apply_match_threshold || 85) + '%';
+        document.getElementById('set-daily-limit').value = p.applications_per_day || 5;
+        document.getElementById('limit-val').textContent = p.applications_per_day || 5;
+        document.getElementById('set-stealth').checked = p.stealth_mode || false;
+
+        document.getElementById('set-remote').value = p.remote_preference || 'hybrid';
+        document.getElementById('set-min-sal').value = p.min_salary || '';
+        document.getElementById('set-max-sal').value = p.max_salary || '';
+
+        chipData.titles = p.desired_titles || [];
+        chipData.locations = p.desired_locations || [];
+        chipData.blacklist = p.company_blacklist || [];
+        chipData.whitelist = p.company_whitelist || [];
+        chipData.blockers = p.keyword_blockers || [];
+
+        ['titles', 'locations', 'blacklist', 'whitelist', 'blockers'].forEach(renderChips);
+    } catch (e) {
+        console.error('Load settings error:', e);
+    }
+}
+
+// ─── Save Settings ────────────────────────────────────────────────
+async function saveSettings() {
+    const payload = {
+        auto_apply_enabled: document.getElementById('set-auto-apply').checked,
+        auto_apply_match_threshold: parseInt(document.getElementById('set-threshold').value),
+        applications_per_day: parseInt(document.getElementById('set-daily-limit').value),
+        stealth_mode: document.getElementById('set-stealth').checked,
+        remote_preference: document.getElementById('set-remote').value,
+        min_salary: parseInt(document.getElementById('set-min-sal').value) || 0,
+        max_salary: parseInt(document.getElementById('set-max-sal').value) || 0,
+        desired_titles: chipData.titles,
+        desired_locations: chipData.locations,
+        company_blacklist: chipData.blacklist,
+        company_whitelist: chipData.whitelist,
+        keyword_blockers: chipData.blockers,
+    };
+    try {
+        await api.post('/api/profile', payload);
+        toast('Settings saved successfully!', 'success');
+    } catch (e) {
+        toast('Failed to save: ' + e.message, 'error');
+    }
+}
+
+loadSettings();
+</script>
+{% endblock %}

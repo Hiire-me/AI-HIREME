@@ -223,25 +223,8 @@ Sincerely,
 """
 
     def _template_evaluate_skills(self, profile: Dict) -> Dict[str, Any]:
-        skills = profile.get('skills', [])
-        evaluated = []
-        import random
-        for s in skills:
-            # Fake generic high score for demo fallback
-            evaluated.append({'name': s, 'score': random.randint(50, 95)})
-        
-        evaluated.sort(key=lambda x: x['score'], reverse=True)
-        
-        recs = [
-            {'name': 'Python', 'demand': 65, 'pct': 65},
-            {'name': 'SQL', 'demand': 55, 'pct': 55},
-            {'name': 'AWS', 'demand': 45, 'pct': 45},
-            {'name': 'Docker', 'demand': 40, 'pct': 40},
-            {'name': 'React', 'demand': 35, 'pct': 35},
-        ]
-        
-        recs = [r for r in recs if r['name'].lower() not in [s.lower() for s in skills]]
-        return {'evaluated_skills': evaluated, 'recommended_skills': recs}
+        """Fallback when no API key — return empty results, never fabricate data."""
+        return {'evaluated_skills': [], 'recommended_skills': []}
 
     # ─────────────────────────────────────────────────
     # Helpers

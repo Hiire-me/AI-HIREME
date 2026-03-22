@@ -210,3 +210,4 @@ class Application(db.Model):
     status_updated  = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'job_id', name='uq_user_job'),)
+

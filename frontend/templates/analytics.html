@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">Analytics</div>
+        <div class="page-subtitle">Track your job search performance and resume effectiveness</div>
+    </div>
+</div>
+
+<!-- Top Stat Cards -->
+<div class="stats-grid" id="analytics-stats" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card stat-card--glow">
+        <div class="stat-value" id="an-total-apps">—</div>
+        <div class="stat-label">Total Applications</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="bar-apps" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-value" id="an-match-avg">—</div>
+        <div class="stat-label">Avg Match Score</div>
+        <div class="stat-bar"><div class="stat-bar-fill fill-good" id="bar-match" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-value" id="an-response">—</div>
+        <div class="stat-label">Response Rate</div>
+        <div class="stat-bar"><div class="stat-bar-fill fill-strong" id="bar-response" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card stat-card--glow">
+        <div class="stat-value" id="an-total-matches">—</div>
+        <div class="stat-label">Total Matches</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="bar-matches" style="width:0%"></div></div>
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <!-- Application Funnel -->
+    <div class="analytics-panel">
+        <h3 class="panel-title">Application Funnel</h3>
+        <div id="funnel-chart" class="funnel-container"></div>
+    </div>
+
+    <!-- Top Skills -->
+    <div class="analytics-panel">
+        <h3 class="panel-title">Top Matched Skills</h3>
+        <div id="skills-chart" class="skills-bars"></div>
+    </div>
+</div>
+
+<!-- Activity Timeline -->
+<div class="analytics-panel" style="margin-top:20px">
+    <h3 class="panel-title">📅 30-Day Application Activity</h3>
+    <div id="timeline-chart" class="timeline-container"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadAnalytics() {
+    try {
+        const [overview, timeline] = await Promise.all([
+            api.get('/api/analytics/overview'),
+            api.get('/api/analytics/timeline'),
+        ]);
+
+        // Stats
+        const apps = overview.applications;
+        document.getElementById('an-total-apps').textContent = apps.total;
+        document.getElementById('an-match-avg').textContent = overview.matches.avg_score + '%';
+        document.getElementById('an-response').textContent = overview.response_rate + '%';
+        document.getElementById('an-total-matches').textContent = overview.matches.total;
+
+        // Animated bars
+        setTimeout(() => {
+            document.getElementById('bar-apps').style.width = Math.min(apps.total * 5, 100) + '%';
+            document.getElementById('bar-match').style.width = overview.matches.avg_score + '%';
+            document.getElementById('bar-response').style.width = overview.response_rate + '%';
+            document.getElementById('bar-matches').style.width = Math.min(overview.matches.total * 2, 100) + '%';
+        }, 100);
+
+        // Funnel Chart
+        const funnelEl = document.getElementById('funnel-chart');
+        const stages = [
+            { label: 'Submitted', count: apps.submitted, color: '#818CF8' },
+            { label: 'Reviewing', count: apps.reviewing, color: '#60a5fa' },
+            { label: 'Interview', count: apps.interview, color: '#fbbf24' },
+            { label: 'Offer', count: apps.offer, color: '#34d399' },
+            { label: 'Rejected', count: apps.rejected, color: '#f87171' },
+        ];
+        const maxCount = Math.max(...stages.map(s => s.count), 1);
+        funnelEl.innerHTML = stages.map(s => `
+            <div class="funnel-row">
+                <div class="funnel-label">${s.label}</div>
+                <div class="funnel-bar-track">
+                    <div class="funnel-bar" style="width:${(s.count / maxCount) * 100}%;background:${s.color}"></div>
+                </div>
+                <div class="funnel-value">${s.count}</div>
+            </div>
+        `).join('');
+
+        // Skills Chart
+        const skillsEl = document.getElementById('skills-chart');
+        if (overview.top_skills.length) {
+            const maxSkill = overview.top_skills[0].count;
+            skillsEl.innerHTML = overview.top_skills.map((s, i) => `
+                <div class="skill-bar-row">
+                    <div class="skill-bar-name">${s.name}</div>
+                    <div class="skill-bar-track">
+                        <div class="skill-bar-fill" style="width:${(s.count / maxSkill) * 100}%;animation-delay:${i * 0.08}s"></div>
+                    </div>
+                    <div class="skill-bar-val">${s.count}</div>
+                </div>
+            `).join('');
+        } else {
+            skillsEl.innerHTML = '<div class="empty-mini">Run matching to see skill data.</div>';
+        }
+
+        // Timeline
+        const timelineEl = document.getElementById('timeline-chart');
+        const maxDay = Math.max(...timeline.map(d => d.count), 1);
+        timelineEl.innerHTML = `
+            <div class="timeline-bars">
+                ${timeline.map(d => `
+                    <div class="timeline-bar-wrap" title="${d.date}: ${d.count} applications">
+                        <div class="timeline-bar" style="height:${Math.max((d.count / maxDay) * 100, 4)}%"></div>
+                        <div class="timeline-label">${d.date.slice(8)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+    } catch (e) {
+        console.error('Analytics error:', e);
+    }
+}
+
+loadAnalytics();
+</script>
+{% endblock %}

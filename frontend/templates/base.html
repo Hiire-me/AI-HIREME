@@ -7,6 +7,9 @@
     <title>{% block title %}Dashboard{% endblock %} — HIIREME</title>
     <meta name="description" content="HIIREME — AI-powered job search and application platform" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     {% block head %}{% endblock %}
@@ -25,11 +28,16 @@
 
             <!-- Center Nav Links -->
             <nav class="nav-center">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard.dashboard_page') }}" class="nav-item {% if request.endpoint == 'dashboard.dashboard_page' %}active{% endif %}">Dashboard</a>
+                {% endif %}
                 <a href="{{ url_for('jobs.jobs_page') }}" class="nav-item {% if request.endpoint == 'jobs.jobs_page' %}active{% endif %}">Job Board</a>
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('matching.match_page') }}" class="nav-item {% if request.endpoint == 'matching.match_page' %}active{% endif %}">Skill Match</a>
                 <a href="{{ url_for('resume.resume_page') }}" class="nav-item {% if request.endpoint == 'resume.resume_page' %}active{% endif %}">Resume</a>
                 <a href="{{ url_for('applications.applications_page') }}" class="nav-item {% if request.endpoint == 'applications.applications_page' %}active{% endif %}">Applications</a>
+                <a href="/analytics" class="nav-item {% if request.endpoint == 'analytics.analytics_page' %}active{% endif %}">Analytics</a>
+                <a href="/settings" class="nav-item {% if request.endpoint == 'settings_page.settings_page' %}active{% endif %}">Settings</a>
                 {% endif %}
             </nav>
 

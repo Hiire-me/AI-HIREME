@@ -236,36 +236,58 @@ def get_matches():
 @bp.route('/api/skill-score', methods=['GET'])
 @login_required
 def skill_score():
-    """Score each resume skill by market demand purely based on resume."""
+    """Return skills directly from the user's uploaded resume, no AI scoring or fake data."""
     user = current_user
     if not user:
         return jsonify({'skills': [], 'readiness': 0})
 
-    profile_dict = {
-        'summary': user.profile.summary if user.profile else '',
-        'tagline': user.profile.resume_extra.get('tagline', '') if user.profile and user.profile.resume_extra else '',
-        'skills': user.profile.skills if user.profile else []
-    }
+    # Gather skills from profile (synced from resume on upload)
+    skills = list(user.profile.skills or []) if user.profile else []
 
-    if not profile_dict['skills']:
-        # Try gathering from resumes if profile is empty
+    if not skills:
+        # Fallback: pull directly from uploaded resumes
         resumes = Resume.query.filter_by(user_id=current_user.id).all()
         all_skills = []
         for r in resumes:
             all_skills.extend(r.extracted_skills or [])
-        profile_dict['skills'] = list(dict.fromkeys(all_skills))
+        # Deduplicate preserving order
+        seen = set()
+        for s in all_skills:
+            if s.lower() not in seen:
+                seen.add(s.lower())
+                skills.append(s)
 
-    if not profile_dict['skills']:
+    if not skills:
         return jsonify({'skills': [], 'readiness': 0})
 
+    # Use AI evaluation if available (Gemini API key present), otherwise return
+    # skills with no score manipulation — just report them directly from resume
     from app.services.resume_generator import ResumeGenerator
     generator = ResumeGenerator(current_app.config.get('GEMINI_API_KEY', ''))
-    eval_result = generator.evaluate_resume_skills(profile_dict)
 
-    skills_out = eval_result.get('evaluated_skills', [])
+    if generator.model:
+        # AI is available: get real market scores from Gemini
+        profile_dict = {
+            'summary': user.profile.summary if user.profile else '',
+            'tagline': user.profile.resume_extra.get('tagline', '') if user.profile and user.profile.resume_extra else '',
+            'skills': skills
+        }
+        eval_result = generator.evaluate_resume_skills(profile_dict)
+        skills_out = eval_result.get('evaluated_skills', [])
+        # Ensure only skills that are actually in the resume are returned
+        resume_skill_set = {s.lower() for s in skills}
+        skills_out = [s for s in skills_out if s.get('name', '').lower() in resume_skill_set]
+        # Any skill from resume not scored by AI — add with score 50 as neutral
+        scored_names = {s.get('name', '').lower() for s in skills_out}
+        for s in skills:
+            if s.lower() not in scored_names:
+                skills_out.append({'name': s, 'score': 50})
+    else:
+        # No AI: return resume skills directly with a neutral score (no random/fake data)
+        skills_out = [{'name': s, 'score': 50} for s in skills]
+
     skills_out.sort(key=lambda x: x.get('score', 0), reverse=True)
-    
-    # Calculate readiness (average of skill scores)
+
     readiness = 0
     if skills_out:
         readiness = round(sum(s.get('score', 0) for s in skills_out) / len(skills_out))
@@ -276,42 +298,53 @@ def skill_score():
 @bp.route('/api/skill-recommendations', methods=['GET'])
 @login_required
 def skill_recommendations():
-    """Recommend skills the user should learn based purely on their resume profile."""
+    """Recommend skills the user should learn — only using AI when available, never fake data."""
     user = current_user
     if not user:
+        return jsonify([])
+
+    # Gather skills from profile first
+    skills = list(user.profile.skills or []) if user.profile else []
+
+    if not skills:
+        # Fallback: pull directly from uploaded resumes
+        resumes = Resume.query.filter_by(user_id=current_user.id).all()
+        all_skills = []
+        for r in resumes:
+            all_skills.extend(r.extracted_skills or [])
+        skills = list(dict.fromkeys(all_skills))
+
+    if not skills:
+        return jsonify([])  # No resume uploaded — return empty, no fake data
+
+    from app.services.resume_generator import ResumeGenerator
+    generator = ResumeGenerator(current_app.config.get('GEMINI_API_KEY', ''))
+
+    if not generator.model:
+        # No AI available — return empty instead of fake recommendations
         return jsonify([])
 
     profile_dict = {
         'summary': user.profile.summary if user.profile else '',
         'tagline': user.profile.resume_extra.get('tagline', '') if user.profile and user.profile.resume_extra else '',
-        'skills': user.profile.skills if user.profile else []
+        'skills': skills
     }
-
-    if not profile_dict['skills']:
-        # Try gathering from resumes if profile is empty
-        resumes = Resume.query.filter_by(user_id=current_user.id).all()
-        all_skills = []
-        for r in resumes:
-            all_skills.extend(r.extracted_skills or [])
-        profile_dict['skills'] = list(dict.fromkeys(all_skills))
-
-    if not profile_dict['skills']:
-        return jsonify([])
-
-    from app.services.resume_generator import ResumeGenerator
-    generator = ResumeGenerator(current_app.config.get('GEMINI_API_KEY', ''))
     eval_result = generator.evaluate_resume_skills(profile_dict)
 
     recs_out = eval_result.get('recommended_skills', [])
-    # Format to match frontend expectations: 'name', 'demand', 'pct'
     formatted_recs = []
     for r in recs_out:
+        name = r.get('name', '')
+        if not name:
+            continue
+        # Never recommend a skill that already exists in the resume
+        if name.lower() in {s.lower() for s in skills}:
+            continue
         formatted_recs.append({
-            'name': r.get('name', ''),
+            'name': name,
             'demand': r.get('demand', 0),
             'pct': r.get('pct', 0)
         })
-        
-    formatted_recs.sort(key=lambda x: x['pct'], reverse=True)
 
+    formatted_recs.sort(key=lambda x: x['pct'], reverse=True)
     return jsonify(formatted_recs[:10])

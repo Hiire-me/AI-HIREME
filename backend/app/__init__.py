@@ -67,18 +67,21 @@ def create_app():
 
     # Blueprints
     from app.routes import auth, resume, jobs, matching, applications, profile
-    from app.routes import ws_events
+    from app.routes import ws_events, settings, analytics, dashboard
     app.register_blueprint(auth.bp)
     app.register_blueprint(resume.bp)
     app.register_blueprint(jobs.bp)
     app.register_blueprint(matching.bp)
     app.register_blueprint(applications.bp)
     app.register_blueprint(profile.bp)
+    app.register_blueprint(settings.bp)
+    app.register_blueprint(analytics.bp)
+    app.register_blueprint(dashboard.bp)
 
     @app.route('/')
     def index():
         from flask import redirect, url_for
-        return redirect(url_for('jobs.jobs_page'))
+        return redirect(url_for('dashboard.dashboard_page'))
 
     # Create tables on first run
     with app.app_context():

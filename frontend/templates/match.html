@@ -56,8 +56,8 @@
         <div class="divider"></div>
         <div id="skill-bars-list" class="skill-bars-list">
             <div class="empty-state" style="padding:24px 0">
-                <div class="empty-title">No skill data yet</div>
-                <div class="empty-sub">Upload a resume and run Auto-Match to see your skill scores.</div>
+                <div class="empty-title">No skill found</div>
+                <div class="empty-sub">Upload a resume to see your skills from the document.</div>
             </div>
         </div>
     </div>
@@ -74,8 +74,8 @@
         <div class="divider"></div>
         <div id="skill-recs-list" class="skill-recs-list">
             <div class="empty-state" style="padding:24px 0">
-                <div class="empty-title">No recommendations yet</div>
-                <div class="empty-sub">Run Auto-Match to discover in-demand skills you're missing.</div>
+                <div class="empty-title">No interests found</div>
+                <div class="empty-sub">Upload a resume with a Gemini API key configured to get AI-powered skill suggestions.</div>
             </div>
         </div>
     </div>
@@ -436,8 +436,8 @@
             const container = document.getElementById('skill-bars-list');
             if (!skills.length) {
                 container.innerHTML = `<div class="empty-state" style="padding:24px 0">
-                    <div class="empty-title">No skill data yet</div>
-                    <div class="empty-sub">Upload a resume and run Auto-Match to see your skill scores.</div>
+                    <div class="empty-title">No skill found</div>
+                    <div class="empty-sub">Upload a resume to see your extracted skills here.</div>
                 </div>`;
                 return;
             }
@@ -463,8 +463,8 @@
             const container = document.getElementById('skill-recs-list');
             if (!recs.length) {
                 container.innerHTML = `<div class="empty-state" style="padding:24px 0">
-                    <div class="empty-title">No recommendations yet</div>
-                    <div class="empty-sub">Run Auto-Match to discover in-demand skills you're missing.</div>
+                    <div class="empty-title">No interests found</div>
+                    <div class="empty-sub">Upload a resume with a Gemini API key to get AI skill recommendations.</div>
                 </div>`;
                 return;
             }
